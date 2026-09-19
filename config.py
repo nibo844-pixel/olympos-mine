@@ -52,3 +52,17 @@ TON_WALLET = os.environ.get("TON_WALLET", "")
 TON_PREMIUM_PRICE = float(os.environ.get("TON_PREMIUM_PRICE", "0.5"))
 TON_API_KEY = os.environ.get("TON_API_KEY", "")
 PREMIUM_RIG_PER_SEC = 50
+
+# --- Olympos extras: daily, quests, tournament, ads ---
+DAILY_REWARDS = [0, 100, 200, 350, 500, 750, 1000, 1500]
+QUESTS = [
+    {"code": "tap100", "need": 100, "reward": 300},
+    {"code": "rig3", "need": 3, "reward": 400},
+    {"code": "oracle1", "need": 1, "reward": 200},
+    {"code": "raid1", "need": 1, "reward": 200},
+]
+TOURNAMENT_PRIZES = [5000, 3000, 2000]
+ADSGRAM_BLOCK_ID = os.environ.get("ADSGRAM_BLOCK_ID", "")
+ADS_REWARD_ENERGY = 400
+ADS_COOLDOWN_SEC = 60
+ADS_MAX_PER_DAY = 20

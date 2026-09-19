@@ -69,8 +69,13 @@ def _init(c):
         id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, product TEXT,
         source TEXT DEFAULT '', tx TEXT DEFAULT '', created INTEGER)""")
     c.execute("CREATE TABLE IF NOT EXISTS wallets(user_id TEXT PRIMARY KEY, ton_address TEXT, updated INTEGER)")
+    c.execute("CREATE TABLE IF NOT EXISTS quests(user_id TEXT, code TEXT, claimed INTEGER DEFAULT 0, PRIMARY KEY(user_id, code))") if c.pg else c.execute("CREATE TABLE IF NOT EXISTS quests(user_id TEXT, code TEXT, claimed INTEGER DEFAULT 0, PRIMARY KEY(user_id, code))")
+    c.execute("CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT)")
     for col, ddl in [("shield_until","INTEGER DEFAULT 0"),("turbo","INTEGER DEFAULT 0"),
-                     ("ton_wallet","TEXT DEFAULT ''"),("premium","INTEGER DEFAULT 0")]:
+                     ("ton_wallet","TEXT DEFAULT ''"),("premium","INTEGER DEFAULT 0"),
+                     ("taps_total","INTEGER DEFAULT 0"),("last_daily","INTEGER DEFAULT 0"),
+                     ("daily_streak","INTEGER DEFAULT 0"),("last_ad","INTEGER DEFAULT 0"),
+                     ("ads_day","TEXT DEFAULT ''"),("ads_n","INTEGER DEFAULT 0")]:
         try:
             c.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
         except Exception:
@@ -193,6 +198,39 @@ def payload(u, rigs, rate):
             "shield_until": u["shield_until"] if "shield_until" in k else 0,
             "ton_wallet": u["ton_wallet"] if "ton_wallet" in k else ""}
 
+def meta_get(c, k):
+    r = _row(c.execute("SELECT v FROM meta WHERE k=?", (k,)).fetchone())
+    return r["v"] if r else None
+
+def meta_set(c, k, v):
+    v = str(v)
+    if c.pg:
+        c.execute("INSERT INTO meta(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=EXCLUDED.v", (k, v))
+    else:
+        c.execute("INSERT OR REPLACE INTO meta(k,v) VALUES(?,?)", (k, v))
+    c.commit()
+
+def quest_progress(u, rigs):
+    out = []
+    for q in config.QUESTS:
+        code = q["code"]
+        if code == "tap100":
+            have = int(u.get("taps_total", 0) or 0)
+        elif code == "rig3":
+            have = sum(int(v) for v in (rigs or {}).values())
+        elif code == "oracle1":
+            have = 1 if u.get("oracle_day") else 0
+        elif code == "raid1":
+            have = 1 if (u.get("last_raid", 0) or 0) > 0 else 0
+        else:
+            have = 0
+        out.append({"code": code, "need": q["need"], "have": have, "reward": q["reward"]})
+    return out
+
+def quest_claimed(c, uid):
+    rows = c.execute("SELECT code FROM quests WHERE user_id=? AND claimed=1", (uid,)).fetchall()
+    return set(_row(r)["code"] for r in rows)
+
 def check_rate(uid, min_interval=0.4):
     now = time.time()
     last = RATE.get(uid, 0)
@@ -286,7 +324,8 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/shop/catalog":
                 return self.send_json({"ok": True, "stars": config.STARS_PRODUCTS,
                     "ton": {"price": config.TON_PREMIUM_PRICE, "to": config.TON_WALLET,
-                            "per_sec": config.PREMIUM_RIG_PER_SEC}})
+                            "per_sec": config.PREMIUM_RIG_PER_SEC},
+                    "adsgram": config.ADSGRAM_BLOCK_ID})
             if p.path == "/api/season":
                 rows = [_row(r) for r in c.execute("SELECT polis, SUM(myth) s, COUNT(*) n FROM users GROUP BY polis").fetchall()]
                 by = {r["polis"]: {"myth": round(float(r["s"] or 0)), "players": r["n"]} for r in rows}
@@ -295,8 +334,29 @@ class H(BaseHTTPRequestHandler):
                 week = now // (7 * 86400)
                 ends = (week + 1) * 7 * 86400 - now
                 leader = max(config.POLIS_LIST, key=lambda k: by[k]["myth"])
+                paid = meta_get(c, "season_paid_week")
+                if paid is not None and paid != str(week):
+                    top = [_row(r) for r in c.execute(
+                        "SELECT user_id, username, myth FROM users WHERE polis=? ORDER BY myth DESC LIMIT 3",
+                        (leader,)).fetchall()]
+                    winners = []
+                    for i, w in enumerate(top):
+                        prize = config.TOURNAMENT_PRIZES[i] if i < len(config.TOURNAMENT_PRIZES) else 0
+                        if prize:
+                            c.execute("UPDATE users SET myth=myth+? WHERE user_id=?", (prize, w["user_id"]))
+                        winners.append({"username": w["username"] or w["user_id"], "prize": prize})
+                    meta_set(c, "season_paid_week", week)
+                    meta_set(c, "season_winners", json.dumps({"week": int(paid), "polis": leader, "winners": winners}))
+                    c.commit()
+                elif paid is None:
+                    meta_set(c, "season_paid_week", week)
+                try:
+                    lastw = json.loads(meta_get(c, "season_winners") or "null")
+                except Exception:
+                    lastw = None
                 return self.send_json({"ok": True, "polis": by, "ends_in_sec": ends, "leader": leader,
-                                       "names": config.POLIS_NAMES})
+                                       "names": config.POLIS_NAMES, "week": week,
+                                       "prizes": config.TOURNAMENT_PRIZES, "winners": lastw})
             return self.send_json({"ok": False, "error": "unknown"}, 404)
         finally:
             c.close()
@@ -394,7 +454,7 @@ class H(BaseHTTPRequestHandler):
                 gain = taps * config.TAP_REWARD * mult
                 energy -= taps
                 myth = u["myth"] + gain
-                c.execute("UPDATE users SET myth=?, energy=? WHERE user_id=?", (myth, energy, uid))
+                c.execute("UPDATE users SET myth=?, energy=?, taps_total=COALESCE(taps_total,0)+? WHERE user_id=?", (myth, energy, taps, uid))
                 if u["referrer"]:
                     try:
                         c.execute("UPDATE users SET myth=myth+? WHERE user_id=?", (gain * 0.1, u["referrer"]))
@@ -438,6 +498,56 @@ class H(BaseHTTPRequestHandler):
                 c.execute("UPDATE users SET myth=?, last_raid=? WHERE user_id=?", (myth, now, uid))
                 c.commit()
                 return self.send_json({"ok": True, "loot": loot, "myth": round(myth, 1)})
+            if p == "/api/daily":
+                last = int(u.get("last_daily", 0) or 0)
+                wait = 20 * 3600 - (now - last)
+                if wait > 0:
+                    return self.send_json({"ok": False, "error": "wait", "wait_sec": wait,
+                                           "streak": int(u.get("daily_streak", 0) or 0)}, 400)
+                streak = int(u.get("daily_streak", 0) or 0) + 1 if (now - last) < 48 * 3600 else 1
+                reward = config.DAILY_REWARDS[min(streak, 7)]
+                c.execute("UPDATE users SET myth=myth+?, last_daily=?, daily_streak=? WHERE user_id=?",
+                          (reward, now, streak, uid))
+                c.commit()
+                u = get_user(c, uid)
+                return self.send_json({"ok": True, "reward": reward, "streak": streak,
+                                       "myth": round(u["myth"], 1)})
+            if p == "/api/quests":
+                prog = quest_progress(u, rigs)
+                claimed = quest_claimed(c, uid)
+                for q in prog:
+                    q["claimed"] = q["code"] in claimed
+                    q["done"] = q["have"] >= q["need"]
+                return self.send_json({"ok": True, "quests": prog})
+            if p == "/api/quest_claim":
+                code = str(data.get("code", ""))
+                prog = {q["code"]: q for q in quest_progress(u, rigs)}
+                if code not in prog:
+                    return self.send_json({"ok": False, "error": "bad quest"}, 400)
+                if code in quest_claimed(c, uid):
+                    return self.send_json({"ok": False, "error": "claimed"}, 400)
+                if prog[code]["have"] < prog[code]["need"]:
+                    return self.send_json({"ok": False, "error": "not done"}, 400)
+                c.execute("UPDATE users SET myth=myth+? WHERE user_id=?", (prog[code]["reward"], uid))
+                if c.pg:
+                    c.execute("INSERT INTO quests(user_id,code,claimed) VALUES(?,?,1) ON CONFLICT(user_id,code) DO UPDATE SET claimed=1", (uid, code))
+                else:
+                    c.execute("INSERT OR REPLACE INTO quests(user_id,code,claimed) VALUES(?,?,1)", (uid, code))
+                c.commit()
+                u = get_user(c, uid)
+                return self.send_json({"ok": True, "reward": prog[code]["reward"], "myth": round(u["myth"], 1)})
+            if p == "/api/ads/reward":
+                day = time.strftime("%Y-%m-%d")
+                n = int(u.get("ads_n", 0) or 0) if u.get("ads_day") == day else 0
+                if now - int(u.get("last_ad", 0) or 0) < config.ADS_COOLDOWN_SEC:
+                    return self.send_json({"ok": False, "error": "cooldown"}, 400)
+                if n >= config.ADS_MAX_PER_DAY:
+                    return self.send_json({"ok": False, "error": "limit"}, 400)
+                energy = min(config.ENERGY_MAX, int(u["energy"] or 0) + config.ADS_REWARD_ENERGY)
+                c.execute("UPDATE users SET energy=?, last_ad=?, ads_day=?, ads_n=? WHERE user_id=?",
+                          (energy, now, day, n + 1, uid))
+                c.commit()
+                return self.send_json({"ok": True, "energy": energy, "left": config.ADS_MAX_PER_DAY - n - 1})
             if p == "/api/shop/stars_order":
                 prod = str(data.get("product", ""))
                 if prod not in config.STARS_PRODUCTS:

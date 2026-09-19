@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0a0e1f"/>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+<script src="https://sad.adsgram.ai/js/sad.min.js"></script>
 <title>Olympos Mine ⛏️</title>
 <style>
 :root{--gold:#f5b301;--gold2:#ffd75e;--ink:#fff;--mut:#a9b4dd;--card1:#1b2247;--card2:#11162e;--line:#3a4275}
@@ -112,6 +113,29 @@ tr.me td{color:var(--gold2);font-weight:800}
 </div>
 
 <div class="card">
+<b class="ttl">🎁 <span data-i18n="daily">Ημερήσιο Δώρο</span></b>
+<div class="muted" id="dailyInfo">…</div>
+<button class="btn2" id="dailyBtn" style="width:100%;margin-top:8px">🎁 <span data-i18n="dclaim">Πάρε το δώρο</span></button>
+</div>
+
+<div class="card">
+<b class="ttl">📜 <span data-i18n="quests">Αποστολές</span></b>
+<div id="questList"></div>
+</div>
+
+<div class="card">
+<b class="ttl">🏆 <span data-i18n="tourn">Τουρνουά Πόλεων</span></b>
+<div class="muted" id="tournInfo">…</div>
+<div class="muted" id="tournWin" style="margin-top:6px"></div>
+</div>
+
+<div class="card" id="adsCard" style="display:none">
+<b class="ttl">🎬 <span data-i18n="ads">Διαφήμιση = Ενέργεια</span></b>
+<div class="muted" id="adsInfo">…</div>
+<button class="btn2" id="adsBtn" style="width:100%;margin-top:8px">🎬 <span data-i18n="adswatch">Δες βίντεο +⚡</span></button>
+</div>
+
+<div class="card">
 <b class="ttl">👥 <span data-i18n="ref">Φέρε Οπλίτες (10% για πάντα + 100 bonus)</span></b>
 <div class="muted" id="ref">…</div>
 <div class="row" style="margin-top:8px"><button class="btn2" id="copy" data-i18n="copylink">Αντιγραφή link</button><button class="btn2" id="shareRef" data-i18n="share">Κοινοποίηση ✈️</button></div>
@@ -167,7 +191,11 @@ ton_wallet_line:"Πορτοφόλι: {x}",rewards:"Τι Κερδίζεις",boar
 claim_ok:"Claim OK: {x} $MYTH",paid:"✅ Πληρωμή OK!",mock_ok:"Mock OK! Μπήκε το boost ✅",ends_in:"λήγει σε {x}h",leader:"Leader",
 done:"έτοιμο ✅",ton_need_wallet:"Πρώτα σύνδεσε wallet (ή στείλε TON χειροκίνητα).",ton_no_net:"Το TON Connect θέλει internet.",
 r1:"• Σκάβεις <b>$MYTH</b> με taps, ορυχεία, χρησμό και raids.",r2:"• Η νικήτρια <b>Πόλη</b> κάθε εβδομάδας παίρνει bonus.",
-r3:"• Φέρνεις φίλους = <b>10% για πάντα</b> από το mining τους.",r4:"• Τα $MYTH θα μετατραπούν σε αληθινό TON token στο λανσάρισμα."},
+r3:"• Φέρνεις φίλους = <b>10% για πάντα</b> από το mining τους.",r4:"• Τα $MYTH θα μετατραπούν σε αληθινό TON token στο λανσάρισμα.",
+daily:"Ημερήσιο Δώρο",dclaim:"Πάρε το δώρο",dstreak:"Σερί: {x} 🔥",dwait:"Έλα σε {x}h ⏳",dgot:"Δώρο: +{x} $MYTH 🎉",
+quests:"Αποστολές",qclaim:"Πάρε",qdone:"Ολοκληρώθηκε ✅",qclaimed:"Ελήφθη ✅",q_tap100:"Κάνε 100 taps",q_rig3:"Απόκτησε 3 ορυχεία",q_oracle1:"Λύσε τον χρησμό",q_raid1:"Κάνε 1 επιδρομή",
+tourn:"Τουρνουά Πόλεων",tinfo:"Εβδομάδα {w} • Νικήτρια πόλη: {c} • Έπαθλα top3: {p} $MYTH",tends:" • λήγει σε {x}h",twinners:"Τελευταίοι νικητές ({c}): {w}",
+ads:"Διαφήμιση = Ενέργεια",adswatch:"Δες βίντεο +⚡",adsinfo:"Δες ένα σύντομο βίντεο και γέμισε +{x} ενέργεια. ({n} απομένουν σήμερα)",ads_ok:"+{x} ενέργεια! ⚡",ads_cool:"Περίμενε λίγο ⏳",ads_limit:"Έφτασες το ημερήσιο όριο 🙂",r5:"• Καθημερινό δώρο, αποστολές και τουρνουά με έπαθλα <b>$MYTH</b>."},
 en: {subtitle:"Mine $MYTH • Pick your City • Solve the Oracle",connecting:"🔄 Connecting…",online:"🟢 Connected!",offline:"🔴 Can't reach server. Try again.",
 persec:"/sec",polis:"City",c_athens:"Athens",c_sparta:"Sparta",c_crete:"Crete",zeus:"ZEUS BOLT — x5 for 5s! TAP NOW!",
 tap:"MINE (+1)",zeustip:"Tip: while the bolt flashes, every tap pays x5.",shop:"Rigs (work offline 8h)",claim:"Claim offline earnings",
@@ -181,13 +209,17 @@ ton_wallet_line:"Wallet: {x}",rewards:"What You Win",board:"Leaderboard",noenerg
 claim_ok:"Claim OK: {x} $MYTH",paid:"✅ Payment OK!",mock_ok:"Mock OK! Boost applied ✅",ends_in:"ends in {x}h",leader:"Leader",
 done:"done ✅",ton_need_wallet:"Connect a wallet first (or send TON manually).",ton_no_net:"TON Connect needs internet.",
 r1:"• Mine <b>$MYTH</b> with taps, rigs, oracle and raids.",r2:"• The winning <b>City</b> gets a bonus every week.",
-r3:"• Bring friends = <b>10% forever</b> from their mining.",r4:"• $MYTH will convert to a real TON token at launch."}
+r3:"• Bring friends = <b>10% forever</b> from their mining.",r4:"• $MYTH will convert to a real TON token at launch.",
+daily:"Daily Gift",dclaim:"Claim gift",dstreak:"Streak: {x} 🔥",dwait:"Come back in {x}h ⏳",dgot:"Gift: +{x} $MYTH 🎉",
+quests:"Quests",qclaim:"Claim",qdone:"Done ✅",qclaimed:"Claimed ✅",q_tap100:"Do 100 taps",q_rig3:"Own 3 rigs",q_oracle1:"Solve the oracle",q_raid1:"Do 1 raid",
+tourn:"City Tournament",tinfo:"Week {w} • Leading city: {c} • Top3 prizes: {p} $MYTH",tends:" • ends in {x}h",twinners:"Last winners ({c}): {w}",
+ads:"Ads = Energy",adswatch:"Watch video +⚡",adsinfo:"Watch a short video for +{x} energy. ({n} left today)",ads_ok:"+{x} energy! ⚡",ads_cool:"Wait a bit ⏳",ads_limit:"Daily limit reached 🙂",r5:"• Daily gift, quests and tournaments with <b>$MYTH</b> prizes."}
 };
 function t(k, vars){ let s = (I[LANG] && I[LANG][k]) || I.el[k] || k; if(vars) for(const k2 in vars) s = s.replace("{"+k2+"}", vars[k2]); return s; }
 function applyI18n(){
   document.querySelectorAll("[data-i18n]").forEach(el=>{ el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll("[data-i18n-ph]").forEach(el=>{ el.placeholder = t(el.dataset.i18nPh); });
-  document.getElementById("rewardsList").innerHTML = t("r1")+"<br>"+t("r2")+"<br>"+t("r3")+"<br>"+t("r4");
+  document.getElementById("rewardsList").innerHTML = t("r1")+"<br>"+t("r2")+"<br>"+t("r3")+"<br>"+t("r4")+"<br>"+t("r5");
   document.getElementById("langEl").classList.toggle("on", LANG==="el");
   document.getElementById("langEn").classList.toggle("on", LANG==="en");
   document.documentElement.lang = LANG;
@@ -251,6 +283,10 @@ async function season(){
   document.getElementById("polisBars").innerHTML = ["athens","sparta","crete"].map(p=>
     `<div>${j.names[p]} <b>${Math.floor(j.polis[p].myth).toLocaleString()}</b><div class="tr"><i style="width:${Math.round(100*j.polis[p].myth/tot)}%;background:${PCOL[p]}"></i></div></div>`).join("");
   document.getElementById("season").textContent = `${t("leader")}: ${j.names[j.leader]} • ${t("ends_in",{x:Math.floor(j.ends_in_sec/3600)})}`;
+  const ti = document.getElementById("tournInfo");
+  if (ti) ti.textContent = t("tinfo",{w:j.week||1, c:j.names[j.leader], p:(j.prizes||[]).join("/")}) + t("tends",{x:Math.floor(j.ends_in_sec/3600)});
+  const tw = document.getElementById("tournWin");
+  if (tw) tw.textContent = (j.winners && j.winners.winners && j.winners.winners.length) ? t("twinners",{c:j.names[j.winners.polis]||"", w:j.winners.winners.map(x=>(x.username||"")+" +"+x.prize).join(", ")}) : "";
 }
 async function board(){
   const j = await get("/api/leaderboard");
@@ -308,6 +344,7 @@ async function stars(){
   const j = await get("/api/shop/catalog");
   if(!j.ok) return;
   window._ton = j.ton;
+  if (j.adsgram) adsInit(j.adsgram);
   document.getElementById("tonInfo").textContent = `Premium: ${j.ton.price} TON → +${j.ton.per_sec}/sec`;
   const steps = document.getElementById("tonSteps");
   if (j.ton.to){
@@ -350,6 +387,19 @@ document.getElementById("tonBtn").onclick = async ()=>{
   }catch(e){ alert("TON connect: "+e.message); }
 };
 document.getElementById("tonAddr").textContent = "UID: "+UID;
+document.getElementById("dailyBtn").onclick = daily;
+document.getElementById("adsBtn").onclick = async ()=>{
+  if (!_adsCtl){ alert(t("ads_cool")); return; }
+  try{
+    const r = await _adsCtl.show();
+    if (r && r.done){
+      const g = await post("/api/ads/reward",{user_id:UID});
+      buzz(g.ok?"ok":"err"); alert(g.ok ? t("ads_ok",{x:400}) : t("ads_cool"));
+      refresh();
+    }
+  }catch(e){}
+};
+quests();
 document.getElementById("tonBuy").onclick = async ()=>{
   const tx = document.getElementById("tonTx").value.trim();
   if(!tx){ alert(t("ton_need_wallet")); return; }
@@ -357,6 +407,35 @@ document.getElementById("tonBuy").onclick = async ()=>{
   buzz(j.ok?"ok":"err"); alert(j.ok ? t("ton_on") : (j.error||"error"));
   refresh();
 };
+async function daily(){
+  const j = await post("/api/daily",{user_id:UID});
+  const el = document.getElementById("dailyInfo");
+  if (j.ok){ buzz("ok"); el.textContent = t("dgot",{x:j.reward}) + " • " + t("dstreak",{x:j.streak}); refresh(); }
+  else { buzz("err"); el.textContent = j.wait_sec ? t("dwait",{x:Math.ceil(j.wait_sec/3600)}) : (j.error||"error"); }
+}
+async function quests(){
+  const j = await post("/api/quests",{user_id:UID}).catch(()=>null);
+  const el = document.getElementById("questList"); if(!el || !j || !j.ok) return;
+  el.innerHTML = "";
+  j.quests.forEach(q=>{
+    const d = document.createElement("div"); d.className = "srow";
+    d.innerHTML = `<span>${t("q_"+q.code)}<br><small class="muted">${Math.min(q.have,q.need)}/${q.need} • +${q.reward} $MYTH</small></span>`;
+    const b = document.createElement("button"); b.className = "btn2";
+    if (q.claimed){ b.textContent = t("qclaimed"); b.disabled = true; }
+    else if (q.done){ b.textContent = `${t("qclaim")} +${q.reward}`; b.onclick = async ()=>{ const r = await post("/api/quest_claim",{user_id:UID,code:q.code}); buzz(r.ok?"ok":"err"); alert(r.ok ? ("+"+r.reward+" $MYTH 🎉") : r.error); quests(); refresh(); }; }
+    else { b.textContent = t("qdone").replace(" ✅"," ⏳"); b.disabled = true; }
+    d.appendChild(b); el.appendChild(d);
+  });
+}
+let _adsCtl = null;
+async function adsInit(blockId){
+  if (!blockId || !window.Adsgram) return;
+  try{
+    _adsCtl = window.Adsgram.init({blockId});
+    document.getElementById("adsCard").style.display = "block";
+    document.getElementById("adsInfo").textContent = t("adsinfo",{x:400, n:"?"});
+  }catch(e){}
+}
 applyI18n(); stars();
 setInterval(refresh, 5000); setInterval(board, 10000); setInterval(season, 15000);
 init();
