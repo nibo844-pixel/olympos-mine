@@ -198,7 +198,22 @@ def payload(u, rigs, rate):
             "shield_until": u["shield_until"] if "shield_until" in k else 0,
             "ton_wallet": u["ton_wallet"] if "ton_wallet" in k else ""}
 
+DDL_QUESTS = "CREATE TABLE IF NOT EXISTS quests(user_id TEXT, code TEXT, claimed INTEGER DEFAULT 0, PRIMARY KEY(user_id, code))"
+DDL_META = "CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT)"
+
+def ensure_extra(c):
+    try:
+        c.execute(DDL_QUESTS)
+        c.execute(DDL_META)
+        c.commit()
+    except Exception:
+        try:
+            c.rollback()
+        except Exception:
+            pass
+
 def meta_get(c, k):
+    ensure_extra(c)
     r = _row(c.execute("SELECT v FROM meta WHERE k=?", (k,)).fetchone())
     return r["v"] if r else None
 
@@ -228,6 +243,7 @@ def quest_progress(u, rigs):
     return out
 
 def quest_claimed(c, uid):
+    ensure_extra(c)
     rows = c.execute("SELECT code FROM quests WHERE user_id=? AND claimed=1", (uid,)).fetchall()
     return set(_row(r)["code"] for r in rows)
 
