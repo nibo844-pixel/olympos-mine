@@ -498,6 +498,8 @@ class H(BaseHTTPRequestHandler):
                 ok, info = verify_ton_payment(tx, uid, addr)
                 if not ok:
                     return self.send_json({"ok": False, "error": info}, 400)
+                if tx.startswith("mock_") and (u["premium"] or 0) >= 1:
+                    return self.send_json({"ok": False, "error": "Έχεις ήδη το δωρεάν demo Premium. Για κι άλλο χρειάζεται αληθινή πληρωμή TON."}, 400)
                 grant_product(c, uid, "ton_premium", "ton", tx)
                 u = get_user(c, uid)
                 myth, energy, rigs, rate = touch(u, c, now)
