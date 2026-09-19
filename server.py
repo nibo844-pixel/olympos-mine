@@ -11,11 +11,50 @@ from urllib.parse import urlparse, parse_qs
 import config
 
 RATE = {}
+PG = bool(__import__('os').environ.get("DATABASE_URL", ""))
+if PG:
+    import psycopg2
+    import psycopg2.extras
+
+class DB:
+    def __init__(self, conn, pg):
+        self.conn = conn
+        self.pg = pg
+    def execute(self, sql, params=()):
+        if self.pg:
+            sql = sql.replace("?", "%s")
+            cur = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(sql, params)
+            return cur
+        return self.conn.execute(sql, params)
+    def commit(self):
+        return self.conn.commit()
+    def rollback(self):
+        try:
+            self.conn.rollback()
+        except Exception:
+            pass
+    def close(self):
+        try:
+            return self.conn.close()
+        except Exception:
+            pass
+
+def _row(r):
+    return None if r is None else dict(r)
 
 def db():
+    if PG:
+        c = DB(psycopg2.connect(os.environ["DATABASE_URL"]), True)
+        c.execute("SELECT 1")
+        return _init(c)
     os.makedirs(os.path.dirname(config.DB_PATH), exist_ok=True)
-    c = sqlite3.connect(config.DB_PATH)
-    c.row_factory = sqlite3.Row
+    _sq = sqlite3.connect(config.DB_PATH)
+    _sq.row_factory = sqlite3.Row
+    c = DB(_sq, False)
+    return _init(c)
+
+def _init(c):
     c.execute("""CREATE TABLE IF NOT EXISTS users(
         user_id TEXT PRIMARY KEY, username TEXT DEFAULT '',
         myth REAL DEFAULT 0, energy REAL DEFAULT 1000,
@@ -25,6 +64,8 @@ def db():
         oracle_day TEXT DEFAULT '', streak INTEGER DEFAULT 0,
         created INTEGER DEFAULT 0)""")
     c.execute("""CREATE TABLE IF NOT EXISTS purchases(
+        id SERIAL PRIMARY KEY, user_id TEXT, product TEXT,
+        source TEXT DEFAULT '', tx TEXT DEFAULT '', created INTEGER)""") if c.pg else c.execute("""CREATE TABLE IF NOT EXISTS purchases(
         id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, product TEXT,
         source TEXT DEFAULT '', tx TEXT DEFAULT '', created INTEGER)""")
     c.execute("CREATE TABLE IF NOT EXISTS wallets(user_id TEXT PRIMARY KEY, ton_address TEXT, updated INTEGER)")
@@ -33,7 +74,7 @@ def db():
         try:
             c.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
         except Exception:
-            pass
+            c.rollback()
     c.commit()
     return c
 
@@ -106,7 +147,7 @@ def verify_ton_payment(tx_hash, uid, user_wallet=""):
 
 def grant_product(c, uid, product, source="mock", tx=""):
     now = int(time.time())
-    u = c.execute("SELECT * FROM users WHERE user_id=?", (uid,)).fetchone()
+    u = _row(c.execute("SELECT * FROM users WHERE user_id=?", (uid,)).fetchone())
     if not u:
         return False
     if product == "energy_full":
@@ -140,7 +181,7 @@ def touch(row, c, now):
 
 def get_user(c, uid):
     r = c.execute("SELECT * FROM users WHERE user_id=?", (uid,)).fetchone()
-    return r
+    return _row(r)
 
 def payload(u, rigs, rate):
     k = u.keys()
@@ -241,14 +282,14 @@ class H(BaseHTTPRequestHandler):
                     "rigs_catalog": config.RIGS})
             if p.path == "/api/leaderboard":
                 rows = c.execute("SELECT user_id, username, myth, polis FROM users ORDER BY myth DESC LIMIT 20").fetchall()
-                return self.send_json({"ok": True, "top": [dict(r) for r in rows]})
+                return self.send_json({"ok": True, "top": [_row(r) for r in rows]})
             if p.path == "/api/shop/catalog":
                 return self.send_json({"ok": True, "stars": config.STARS_PRODUCTS,
                     "ton": {"price": config.TON_PREMIUM_PRICE, "to": config.TON_WALLET,
                             "per_sec": config.PREMIUM_RIG_PER_SEC}})
             if p.path == "/api/season":
-                rows = c.execute("SELECT polis, SUM(myth) s, COUNT(*) n FROM users GROUP BY polis").fetchall()
-                by = {r["polis"]: {"myth": round(r["s"] or 0), "players": r["n"]} for r in rows}
+                rows = [_row(r) for r in c.execute("SELECT polis, SUM(myth) s, COUNT(*) n FROM users GROUP BY polis").fetchall()]
+                by = {r["polis"]: {"myth": round(float(r["s"] or 0)), "players": r["n"]} for r in rows}
                 for pol in config.POLIS_LIST:
                     by.setdefault(pol, {"myth": 0, "players": 0})
                 week = now // (7 * 86400)
@@ -422,11 +463,26 @@ class H(BaseHTTPRequestHandler):
                 myth, energy, rigs, rate = touch(u, c, now)
                 u = get_user(c, uid)
                 return self.send_json({"ok": True, "state": payload(u, rigs, rate), "mock": True})
+            if p == "/api/admin/add":
+                import os as _os
+                if str(data.get("admin_key", "")) != _os.environ.get("ADMIN_KEY", "") or not _os.environ.get("ADMIN_KEY"):
+                    return self.send_json({"ok": False, "error": "no"}, 403)
+                auid = str(data.get("user_id", ""))[:64]
+                try:
+                    amt = float(data.get("myth", 0))
+                except Exception:
+                    amt = 0
+                au = get_user(c, auid)
+                if not au:
+                    return self.send_json({"ok": False, "error": "nouser"}, 400)
+                c.execute("UPDATE users SET myth=myth+? WHERE user_id=?", (amt, auid))
+                c.commit()
+                return self.send_json({"ok": True, "added": amt})
             if p == "/api/ton/save_wallet":
                 addr = str(data.get("address", "") or "")[:64]
                 c.execute("UPDATE users SET ton_wallet=? WHERE user_id=?", (addr, uid))
                 try:
-                    c.execute("INSERT OR REPLACE INTO wallets(user_id,ton_address,updated) VALUES(?,?,?)", (uid, addr, now))
+                    c.execute("INSERT INTO wallets(user_id,ton_address,updated) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET ton_address=EXCLUDED.ton_address, updated=EXCLUDED.updated", (uid, addr, now)) if c.pg else c.execute("INSERT OR REPLACE INTO wallets(user_id,ton_address,updated) VALUES(?,?,?)", (uid, addr, now))
                 except Exception:
                     pass
                 c.commit()
@@ -436,7 +492,7 @@ class H(BaseHTTPRequestHandler):
                 addr = str(data.get("address", "") or u["ton_wallet"] or "")[:64]
                 if not tx:
                     return self.send_json({"ok": False, "error": "need tx hash"}, 400)
-                exists = c.execute("SELECT COUNT(*) n FROM purchases WHERE tx=?", (tx,)).fetchone()["n"]
+                exists = _row(c.execute("SELECT COUNT(*) n FROM purchases WHERE tx=?", (tx,)).fetchone())["n"]
                 if exists:
                     return self.send_json({"ok": False, "error": "tx used"}, 400)
                 ok, info = verify_ton_payment(tx, uid, addr)
