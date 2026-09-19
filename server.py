@@ -268,6 +268,24 @@ class H(BaseHTTPRequestHandler):
             data = self.read_json()
             if p == "/webhook":
                 upd = data
+                msg0 = upd.get("message", {})
+                txt0 = str(msg0.get("text", "") or "")
+                if txt0.startswith("/start") or txt0.startswith("/play"):
+                    try:
+                        chat = msg0["chat"]["id"]
+                        uid = str(msg0.get("from", {}).get("id", ""))
+                        parts = txt0.split()
+                        ref = parts[1] if len(parts) > 1 else ""
+                        url = config.WEBAPP_URL.rstrip("/") + "/"
+                        if ref and ref != uid:
+                            import urllib.parse as _up
+                            url += ("&" if "?" in url else "?") + "ref=" + _up.quote(ref)
+                        tg_bot_call("sendMessage", {"chat_id": chat,
+                            "text": "🏛️ Olympos Mine!\n\nΣκάψε $MYTH, πάρε Stars boosts και TON premium rigs.\n\n⚡ x5 κεραυνός • 🔮 χρησμός +500 • 👥 referral 10%",
+                            "reply_markup": {"inline_keyboard": [[{"text": "⛏️ Παίξε Olympos Mine", "web_app": {"url": url}}]]}})
+                    except Exception:
+                        pass
+                    return self.send_json({"ok": True})
                 if "pre_checkout_query" in upd:
                     tg_bot_call("answerPreCheckoutQuery", {"pre_checkout_query_id": upd["pre_checkout_query"]["id"], "ok": True})
                     return self.send_json({"ok": True})

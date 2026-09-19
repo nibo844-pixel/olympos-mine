@@ -28,6 +28,7 @@ table{width:100%;font-size:14px;border-collapse:collapse}td,th{padding:6px;borde
 <div class="wrap">
 <h1>🏛️ Olympos Mine</h1>
 <div class="muted">Σκάψε <b>$MYTH</b> • Διάλεξε Πόλη • Λύσε τον Χρησμό</div>
+<div class="muted" id="net">🔄 Σύνδεση…</div>
 
 <div class="card">
 <div class="row"><div>💰 <b id="myth">0</b> $MYTH</div><div>⚡ <span id="en">1000</span>/1000</div></div>
@@ -109,11 +110,14 @@ async function post(p, b){ const r = await fetch(p,{method:"POST",headers:{"Cont
 async function get(p){ const r = await fetch(p); return r.json(); }
 
 async function init(){
+  try{
   let polis = localStorage.getItem("polis") || "athens";
   const j = await post("/api/init", {user_id: UID, username: USERNAME, polis, referrer: REF});
   if (j.ok) renderState(j.state);
   refresh(); season(); board();
   document.getElementById("ref").textContent = location.origin + "/?ref=" + UID + "  (στείλτο σε φίλους)";
+  document.getElementById("net").textContent = "🟢 Συνδέθηκες!";
+  }catch(e){ document.getElementById("net").textContent = "🔴 Δεν μπορώ να συνδεθώ στο server. Δοκίμασε ξανά / άνοιξε το link σε Chrome."; }
 }
 function renderState(s){
   document.getElementById("myth").textContent = s.myth;
