@@ -207,8 +207,8 @@ class H(BaseHTTPRequestHandler):
             fp = os.path.join(base, "index.html")
             if not os.path.isfile(fp):
                 return self.send_json({"ok": False, "error": "no frontend yet"}, 404)
-        ext = os.path.splitext(fp)[1]
-        ct = {" .html": "text/html"}.get(ext, None) or {"html": "text/html; charset=utf-8", ".js": "application/javascript", ".css": "text/css", ".json": "application/json"}.get(ext, "application/octet-stream")
+        ext = os.path.splitext(fp)[1].lower()
+        ct = {".html": "text/html; charset=utf-8", ".js": "application/javascript", ".css": "text/css", ".json": "application/json"}.get(ext, "application/octet-stream")
         try:
             with open(fp, "rb") as f:
                 b = f.read()
