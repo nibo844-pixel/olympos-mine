@@ -334,26 +334,30 @@ class H(BaseHTTPRequestHandler):
                 week = now // (7 * 86400)
                 ends = (week + 1) * 7 * 86400 - now
                 leader = max(config.POLIS_LIST, key=lambda k: by[k]["myth"])
-                paid = meta_get(c, "season_paid_week")
-                if paid is not None and paid != str(week):
-                    top = [_row(r) for r in c.execute(
-                        "SELECT user_id, username, myth FROM users WHERE polis=? ORDER BY myth DESC LIMIT 3",
-                        (leader,)).fetchall()]
-                    winners = []
-                    for i, w in enumerate(top):
-                        prize = config.TOURNAMENT_PRIZES[i] if i < len(config.TOURNAMENT_PRIZES) else 0
-                        if prize:
-                            c.execute("UPDATE users SET myth=myth+? WHERE user_id=?", (prize, w["user_id"]))
-                        winners.append({"username": w["username"] or w["user_id"], "prize": prize})
-                    meta_set(c, "season_paid_week", week)
-                    meta_set(c, "season_winners", json.dumps({"week": int(paid), "polis": leader, "winners": winners}))
-                    c.commit()
-                elif paid is None:
-                    meta_set(c, "season_paid_week", week)
+                lastw = None
                 try:
-                    lastw = json.loads(meta_get(c, "season_winners") or "null")
-                except Exception:
-                    lastw = None
+                    paid = meta_get(c, "season_paid_week")
+                    if paid is not None and paid != str(week):
+                        top = [_row(r) for r in c.execute(
+                            "SELECT user_id, username, myth FROM users WHERE polis=? ORDER BY myth DESC LIMIT 3",
+                            (leader,)).fetchall()]
+                        winners = []
+                        for i, w in enumerate(top):
+                            prize = config.TOURNAMENT_PRIZES[i] if i < len(config.TOURNAMENT_PRIZES) else 0
+                            if prize:
+                                c.execute("UPDATE users SET myth=myth+? WHERE user_id=?", (prize, w["user_id"]))
+                            winners.append({"username": w["username"] or w["user_id"], "prize": prize})
+                        meta_set(c, "season_paid_week", week)
+                        meta_set(c, "season_winners", json.dumps({"week": int(paid), "polis": leader, "winners": winners}))
+                        c.commit()
+                    elif paid is None:
+                        meta_set(c, "season_paid_week", week)
+                    try:
+                        lastw = json.loads(meta_get(c, "season_winners") or "null")
+                    except Exception:
+                        lastw = None
+                except Exception as e:
+                    return self.send_json({"ok": False, "error": "dbg:" + repr(e)}, 500)
                 return self.send_json({"ok": True, "polis": by, "ends_in_sec": ends, "leader": leader,
                                        "names": config.POLIS_NAMES, "week": week,
                                        "prizes": config.TOURNAMENT_PRIZES, "winners": lastw})
@@ -513,8 +517,11 @@ class H(BaseHTTPRequestHandler):
                 return self.send_json({"ok": True, "reward": reward, "streak": streak,
                                        "myth": round(u["myth"], 1)})
             if p == "/api/quests":
-                prog = quest_progress(u, rigs)
-                claimed = quest_claimed(c, uid)
+                try:
+                    prog = quest_progress(u, rigs)
+                    claimed = quest_claimed(c, uid)
+                except Exception as e:
+                    return self.send_json({"ok": False, "error": "dbg:" + repr(e)}, 500)
                 for q in prog:
                     q["claimed"] = q["code"] in claimed
                     q["done"] = q["have"] >= q["need"]
