@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+<title>Olympos Mine ⛏️</title>
+<style>
+*{box-sizing:border-box;font-family:system-ui}body{margin:0;background:#0b1020;color:#fff;min-height:100vh}
+.wrap{max-width:480px;margin:0 auto;padding:16px}
+.card{background:#151c33;border:1px solid #2a3560;border-radius:14px;padding:14px;margin:10px 0}
+h1{font-size:22px;margin:6px 0}.muted{color:#9aa6cc;font-size:13px}
+.btn{background:#f5b301;color:#111;border:0;border-radius:12px;padding:12px 16px;font-weight:800;font-size:16px;width:100%;cursor:pointer}
+.btn:disabled{opacity:.5}.btn2{background:#243056;color:#fff;border:1px solid #3a4a85;border-radius:10px;padding:8px 10px;cursor:pointer}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.bar{height:10px;background:#243056;border-radius:99px;overflow:hidden}.bar>i{display:block;height:100%;background:#37e08b}
+.mine{font-size:90px;text-align:center;cursor:pointer;user-select:none;line-height:1.1}
+.mine:active{transform:scale(.95)}
+.zeus{text-align:center;font-weight:900;background:#6d28d9;border-radius:10px;padding:8px;margin:8px 0;display:none}
+.polis{display:flex;gap:6px}.polis button{flex:1}
+.shop div{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #243056}
+input{width:100%;padding:10px;border-radius:10px;border:1px solid #3a4a85;background:#0e1430;color:#fff}
+table{width:100%;font-size:14px;border-collapse:collapse}td,th{padding:6px;border-bottom:1px solid #243056;text-align:left}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🏛️ Olympos Mine</h1>
+<div class="muted">Σκάψε <b>$MYTH</b> • Διάλεξε Πόλη • Λύσε τον Χρησμό</div>
+
+<div class="card">
+<div class="row"><div>💰 <b id="myth">0</b> $MYTH</div><div>⚡ <span id="en">1000</span>/1000</div></div>
+<div class="bar"><i id="enbar" style="width:100%"></i></div>
+<div class="muted">Rigs: <span id="rate">0</span>/sec • Streak: <span id="streak">0</span></div>
+</div>
+
+<div class="card" id="polisCard">
+<b>⚔️ Πόλη</b>
+<div class="polis" style="margin-top:8px">
+<button class="btn2" data-p="athens">🏛️ Αθήνα</button>
+<button class="btn2" data-p="sparta">🛡️ Σπάρτη</button>
+<button class="btn2" data-p="crete">🌊 Κρήτη</button>
+</div>
+<div class="muted" id="season" style="margin-top:8px">Season…</div>
+</div>
+
+<div class="card">
+<div class="zeus" id="zeus">⚡ ΚΕΡΑΥΝΟΣ ΔΙΑ — x5 για 5”! ΠΑΤΑ ΤΩΡΑ!</div>
+<div class="mine" id="mine">⛏️</div>
+<button class="btn" id="tap">ΣΚΑΨΕ (+1)</button>
+<div class="muted" style="margin-top:6px">Tip: όταν ανάβει ο κεραυνός, κάθε tap δίνει x5.</div>
+</div>
+
+<div class="card shop">
+<b>🏗️ Ορυχεία (δουλεύουν offline 8h)</b>
+<div id="shop"></div>
+<button class="btn2" id="claim" style="width:100%;margin-top:8px">📥 Claim offline κέρδη</button>
+</div>
+
+<div class="card">
+<b>🔮 Χρησμός</b>
+<div id="oracleQ" class="muted">…</div>
+<div class="row" style="margin-top:8px"><input id="oracleA" placeholder="απάντηση…"/><button class="btn2" id="oracleGo">OK</button></div>
+</div>
+
+<div class="card">
+<b>⚔️ Επιδρομή (1 / 20h)</b>
+<button class="btn2" id="raid" style="width:100%;margin-top:8px">Κάνε επιδρομή για 50-200 $MYTH</button>
+</div>
+
+<div class="card">
+<b>👥 Φέρε Οπλίτες (10% για πάντα + 100 bonus)</b>
+<div class="muted" id="ref">…</div>
+<button class="btn2" id="copy" style="width:100%;margin-top:8px">Αντιγραφή referral link</button>
+</div>
+
+<div class="card">
+<b>⭐ Stars Shop</b>
+<div class="muted">Πλήρωσε με Telegram Stars μέσα από το Telegram. Τοπικά δοκιμάζεις με Mock.</div>
+<div id="stars"></div>
+</div>
+
+<div class="card">
+<b>💎 TON Premium (+50/sec για πάντα)</b>
+<div class="muted" id="tonInfo">Σύνδεσε wallet και στείλε TON για premium rig.</div>
+<div class="row" style="margin-top:8px"><button class="btn2" id="tonBtn">Connect TON</button></div>
+<div class="row" style="margin-top:8px"><input id="tonTx" placeholder="tx hash (mock τοπικά)"/><button class="btn2" id="tonBuy">Verify</button></div>
+<div class="muted" id="tonAddr"></div>
+</div>
+
+<div class="card">
+<b>🏆 Leaderboard</b>
+<table id="top"></table>
+</div>
+</div>
+
+<script>
+const tg = window.Telegram?.WebApp || null;
+if (tg) tg.expand();
+const qs = new URLSearchParams(location.search);
+let UID = tg?.initDataUnsafe?.user?.id?.toString() || localStorage.getItem("uid") || ("guest"+Math.floor(Math.random()*1e6));
+localStorage.setItem("uid", UID);
+let USERNAME = tg?.initDataUnsafe?.user?.username || ("guest"+UID.slice(-4));
+let REF = qs.get("ref") || qs.get("startattach") || "";
+let ZEUS = false, CATALOG = {};
+
+async function post(p, b){ const r = await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}); return r.json(); }
+async function get(p){ const r = await fetch(p); return r.json(); }
+
+async function init(){
+  let polis = localStorage.getItem("polis") || "athens";
+  const j = await post("/api/init", {user_id: UID, username: USERNAME, polis, referrer: REF});
+  if (j.ok) renderState(j.state);
+  refresh(); season(); board();
+  document.getElementById("ref").textContent = location.origin + "/?ref=" + UID + "  (στείλτο σε φίλους)";
+}
+function renderState(s){
+  document.getElementById("myth").textContent = s.myth;
+  document.getElementById("en").textContent = s.energy;
+  document.getElementById("enbar").style.width = (100*s.energy/s.energy_max)+"%";
+  document.getElementById("rate").textContent = s.rate;
+  document.getElementById("streak").textContent = s.streak;
+  localStorage.setItem("polis", s.polis);
+  renderShop(s);
+}
+function renderShop(s){
+  const el = document.getElementById("shop"); el.innerHTML = "";
+  for (const k in CATALOG){
+    const c = CATALOG[k]; const owned = (s.rigs||{})[k]||0;
+    const price = Math.floor(c.cost * Math.pow(1.6, owned));
+    const d = document.createElement("div");
+    d.innerHTML = `<span>${c.name} x${owned} <small class="muted">+${c.per_sec}/s</small></span>`;
+    const b = document.createElement("button"); b.className="btn2"; b.textContent = `Αγορά ${price}`;
+    b.onclick = async ()=>{ const j = await post("/api/buy",{user_id:UID,rig:k}); if(j.ok){renderState({myth:j.myth,energy:parseInt(document.getElementById("en").textContent),energy_max:1000,rigs:j.rigs,rate:j.rate,streak:parseInt(document.getElementById("streak").textContent)}); refresh();} else alert(j.error); };
+    d.appendChild(b); el.appendChild(d);
+  }
+}
+async function refresh(){
+  const j = await get("/api/state?user_id="+encodeURIComponent(UID));
+  if (j.ok){ renderState(j.state); CATALOG = j.rigs_catalog;
+    document.getElementById("oracleQ").textContent = "❓ " + j.oracle.q + (j.oracle.done ? " (done ✅)" : "");
+    renderState(j.state);
+  }
+}
+async function season(){
+  const j = await get("/api/season");
+  if (j.ok){ document.getElementById("season").textContent = `Leader: ${j.names[j.leader]} • Αθήνα ${j.polis.athens.myth} / Σπάρτη ${j.polis.sparta.myth} / Κρήτη ${j.polis.crete.myth} • λήγει σε ${Math.floor(j.ends_in_sec/3600)}h`; }
+}
+async function board(){
+  const j = await get("/api/leaderboard");
+  if (j.ok){ document.getElementById("top").innerHTML = j.top.map((r,i)=>`<tr><td>${i+1}</td><td>${r.username||r.user_id}</td><td>${Math.floor(r.myth)}</td><td>${r.polis}</td></tr>`).join(""); }
+}
+// Zeus loop
+(function zeusLoop(){
+  setTimeout(()=>{
+    ZEUS = true;
+    document.getElementById("zeus").style.display = "block";
+    setTimeout(()=>{ ZEUS=false; document.getElementById("zeus").style.display="none"; zeusLoop(); }, 5000);
+  }, 15000 + Math.random()*10000);
+})();
+
+async function doTap(n){
+  const j = await post("/api/tap", {user_id: UID, taps: n||1, zeus: ZEUS});
+  if (j.ok){ document.getElementById("myth").textContent = j.myth; document.getElementById("en").textContent = j.energy;
+    document.getElementById("enbar").style.width = (100*j.energy/1000)+"%"; }
+  else if (j.error === "too fast"){}
+  else if (j.error === "no energy") alert("Άδεια ενέργεια! Περίμενε να γεμίσει ⚡");
+}
+document.getElementById("tap").onclick = ()=>doTap(1);
+document.getElementById("mine").onclick = ()=>doTap(1);
+document.querySelectorAll("[data-p]").forEach(b=>b.onclick = async ()=>{
+  localStorage.setItem("polis", b.dataset.p);
+  await post("/api/init",{user_id:UID,username:USERNAME,polis:b.dataset.p});
+  refresh(); season();
+});
+document.getElementById("claim").onclick = async ()=>{ const j = await post("/api/claim",{user_id:UID}); if(j.ok){refresh(); alert("Claim OK: "+j.myth+" $MYTH");} };
+document.getElementById("oracleGo").onclick = async ()=>{
+  const v = document.getElementById("oracleA").value;
+  const j = await post("/api/oracle",{user_id:UID,answer:v});
+  alert(j.ok ? "Σωστό! +500 $MYTH 🎉" : "Λάθος / ή το έκανες ήδη ❌");
+  refresh();
+};
+document.getElementById("raid").onclick = async ()=>{
+  const j = await post("/api/raid",{user_id:UID});
+  alert(j.ok ? "Loot: +"+j.loot+" $MYTH ⚔️" : "Έλα αργότερα!");
+  refresh();
+};
+document.getElementById("copy").onclick = ()=>{
+  navigator.clipboard?.writeText(document.getElementById("ref").textContent.trim());
+  alert("Αντιγράφηκε! Στείλτο σε φίλους 👥");
+};
+async function stars(){
+  const j = await get("/api/shop/catalog");
+  if(!j.ok) return;
+  window._ton = j.ton;
+  document.getElementById("tonInfo").textContent = `Premium: ${j.ton.price} TON → +${j.ton.per_sec}/sec` + (j.ton.to ? ` στο ${j.ton.to}` : " (βάλε TON_WALLET στο server)");
+  const el = document.getElementById("stars"); el.innerHTML = "";
+  for(const k in j.stars){
+    const it = j.stars[k];
+    const d = document.createElement("div");
+    d.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #243056";
+    d.innerHTML = `<span>${it.title} <small class="muted">${it.desc} • ${it.stars} ⭐</small></span>`;
+    const b = document.createElement("button"); b.className="btn2"; b.textContent=`Αγορά ${it.stars}⭐`;
+    b.onclick = async ()=>{
+      const o = await post("/api/shop/stars_order",{user_id:UID,product:k});
+      if(!o.ok){ alert(o.error||"error"); return; }
+      if(o.mock || !tg?.openInvoice){
+        const c = await post("/api/shop/mock_claim",{user_id:UID,product:k});
+        alert(c.ok ? "Mock OK! Μπήκε το boost ✅" : c.error);
+        refresh(); return;
+      }
+      tg.openInvoice(o.invoice_link, async (st)=>{
+        if(st==="paid"){ alert("✅ Πληρωμή OK!"); refresh(); }
+        else alert("Status: "+st);
+      });
+    };
+    d.appendChild(b); el.appendChild(d);
+  }
+}
+let _tonConn = null;
+document.getElementById("tonBtn").onclick = async ()=>{
+  try{
+    if(!window.TonConnectUI){ alert("TON UI θέλει internet. Βάλε wallet address χειροκίνητα στο επόμενο βήμα."); return; }
+    if(!_tonConn) _tonConn = new TON_CONNECT_UI.TonConnectUI({manifestUrl: location.origin+"/tonconnect-manifest.json"});
+    await _tonConn.openModal();
+    const acc = _tonConn.wallet?.account;
+    if(acc){ await post("/api/ton/save_wallet",{user_id:UID,address:acc.address}); document.getElementById("tonAddr").textContent = "Wallet: "+acc.address; }
+  }catch(e){ alert("TON connect: "+e.message); }
+};
+document.getElementById("tonAddr").textContent = "UID σου για comment: "+UID;
+document.getElementById("tonBuy").onclick = async ()=>{
+  const tx = document.getElementById("tonTx").value.trim() || ("mock_"+Date.now());
+  const j = await post("/api/ton/buy_premium",{user_id:UID,tx,address:document.getElementById("tonAddr").dataset.addr||""});
+  alert(j.ok ? "💎 Premium rig ενεργό! +50/sec" : (j.error||"error"));
+  refresh();
+};
+stars();
+setInterval(refresh, 5000); setInterval(board, 10000); setInterval(season, 15000);
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: olympos-mine
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: BOT_TOKEN
+        sync: false
+      - key: WEBAPP_URL
+        sync: false
+      - key: TON_WALLET
+        sync: false
+      - key: TON_PREMIUM_PRICE
+        value: 0.5
+  - type: worker
+    name: olympos-bot
+    runtime: docker
+    plan: free
+    dockerCommand: python3 bot.py
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: WEBAPP_URL
+        sync: false
