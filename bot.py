@@ -27,13 +27,28 @@ def grant(uid, product, tx=""):
     finally:
         c.close()
 
+GROUP_URL = "https://t.me/aetagent"
+
 def send_start(chat_id, referrer=""):
     url = WEBAPP_URL
     if referrer:
         url += ("&" if "?" in url else "?") + "ref=" + urllib.parse.quote(referrer)
-    kb = {"inline_keyboard": [[{"text": "⛏️ Παίξε Olympos Mine", "web_app": {"url": url}}]]}
+    kb = {"inline_keyboard": [
+        [{"text": "⛏️ Παίξε Olympos Mine", "web_app": {"url": url}}],
+        [{"text": "💬 Μπες στο γκρουπ Myth", "url": GROUP_URL}],
+    ]}
     api("sendMessage", {"chat_id": chat_id,
-        "text": "🏛️ Olympos Mine!\n\nΣκάψε $MYTH, πάρε Stars boosts και TON premium rigs μέσα στο παιχνίδι.\n\n⚡ x5 κεραυνός • 🔮 χρησμός +500 • 👥 referral 10%",
+        "text": "🏛️ Olympos Mine!\n\nΣκάψε $MYTH • Διάλεξε Πόλη • Κέρδισε στο τουρνουά.\n\n⚡ x5 κεραυνός • 🔮 χρησμός • 👥 φέρε φίλους = 10% για πάντα\n💬 Νέα + δώρα στο γκρουπ: @aetagent",
+        "reply_markup": kb})
+
+def send_welcome(chat_id, name=""):
+    url = WEBAPP_URL
+    kb = {"inline_keyboard": [
+        [{"text": "⛏️ Παίξε τώρα", "web_app": {"url": url}}],
+        [{"text": "💬 Γκρουπ Myth", "url": GROUP_URL}],
+    ]}
+    api("sendMessage", {"chat_id": chat_id,
+        "text": f"Καλώς ήρθες {name}! 🏛️\nΠάτα Παίξε, διάλεξε πόλη (Αθήνα/Σπάρτη/Κρήτη) και σκάψε $MYTH.\n💬 Για βοήθεια μπες @aetagent",
         "reply_markup": kb})
 
 def main():
@@ -63,6 +78,14 @@ def main():
                         print("grant err:", e)
                     api("sendMessage", {"chat_id": msg["chat"]["id"], "text": "✅ Πληρωμή OK! Το boost μπήκε στο παιχνίδι."})
                     continue
+                new_members = msg.get("new_chat_members")
+                if new_members:
+                    for m in new_members:
+                        try:
+                            send_welcome(msg["chat"]["id"], "@" + m.get("username", "") if m.get("username") else m.get("first_name", ""))
+                        except Exception:
+                            pass
+                    continue
                 if "text" in msg:
                     chat = msg["chat"]["id"]
                     uid = str(msg["from"]["id"])
@@ -71,7 +94,7 @@ def main():
                         parts = txt.split()
                         ref = parts[1] if len(parts) > 1 else ""
                         send_start(chat, ref if ref != uid else "")
-                    elif txt.startswith("/play"):
+                    elif txt.startswith("/play") or txt.startswith("/help"):
                         send_start(chat)
         except Exception as e:
             print("retry:", e)
