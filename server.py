@@ -54,6 +54,9 @@ def db():
     c = DB(_sq, False)
     return _init(c)
 
+DDL_QUESTS = "CREATE TABLE IF NOT EXISTS quests(user_id TEXT, code TEXT, claimed INTEGER DEFAULT 0, PRIMARY KEY(user_id, code))"
+DDL_META = "CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT)"
+
 def _init(c):
     c.execute("""CREATE TABLE IF NOT EXISTS users(
         user_id TEXT PRIMARY KEY, username TEXT DEFAULT '',
@@ -69,15 +72,6 @@ def _init(c):
         id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, product TEXT,
         source TEXT DEFAULT '', tx TEXT DEFAULT '', created INTEGER)""")
     c.execute("CREATE TABLE IF NOT EXISTS wallets(user_id TEXT PRIMARY KEY, ton_address TEXT, updated INTEGER)")
-    c.execute("CREATE TABLE IF NOT EXISTS quests(user_id TEXT, code TEXT, claimed INTEGER DEFAULT 0, PRIMARY KEY(user_id, code))") if c.pg else c.execute("CREATE TABLE IF NOT EXISTS quests(user_id TEXT, code TEXT, claimed INTEGER DEFAULT 0, PRIMARY KEY(user_id, code))")
-    c.execute("CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT)")
-    try:
-        c.execute("UPDATE users SET total_earned=myth WHERE myth>COALESCE(total_earned,0)")
-    except Exception:
-        try:
-            c.rollback()
-        except Exception:
-            pass
     for col, ddl in [("shield_until","INTEGER DEFAULT 0"),("turbo","INTEGER DEFAULT 0"),
                      ("ton_wallet","TEXT DEFAULT ''"),("premium","INTEGER DEFAULT 0"),
                      ("taps_total","INTEGER DEFAULT 0"),("last_daily","INTEGER DEFAULT 0"),
@@ -86,8 +80,15 @@ def _init(c):
                      ("total_earned","REAL DEFAULT 0"),("ref_earned","REAL DEFAULT 0")]:
         try:
             c.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
+            c.commit()
         except Exception:
             c.rollback()
+    c.execute(DDL_QUESTS)
+    c.execute(DDL_META)
+    try:
+        c.execute("UPDATE users SET total_earned=myth WHERE myth>COALESCE(total_earned,0)")
+    except Exception:
+        c.rollback()
     c.commit()
     return c
 
@@ -207,9 +208,6 @@ def payload(u, rigs, rate):
             "ton_wallet": u["ton_wallet"] if "ton_wallet" in k else "",
             "total_earned": round(u["total_earned"] or 0, 1) if "total_earned" in k else 0,
             "ref_earned": round(u["ref_earned"] or 0, 1) if "ref_earned" in k else 0}
-
-DDL_QUESTS = "CREATE TABLE IF NOT EXISTS quests(user_id TEXT, code TEXT, claimed INTEGER DEFAULT 0, PRIMARY KEY(user_id, code))"
-DDL_META = "CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT)"
 
 def ensure_extra(c):
     try:
