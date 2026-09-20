@@ -571,6 +571,17 @@ class H(BaseHTTPRequestHandler):
                           (energy, now, day, n + 1, uid))
                 c.commit()
                 return self.send_json({"ok": True, "energy": energy, "left": config.ADS_MAX_PER_DAY - n - 1})
+            if p == "/api/convert/preview":
+                total = _row(c.execute("SELECT COALESCE(SUM(myth),0) s, COUNT(*) n FROM users").fetchone())
+                tot = float(total["s"] or 0)
+                mine = float(u["myth"] or 0)
+                share = (mine / tot * 100) if tot > 0 else 0
+                est = share / 100 * config.P2E_POOL
+                cap = config.P2E_POOL * config.MAX_SHARE_PCT / 100
+                return self.send_json({"ok": True, "mine": round(mine), "total": round(tot),
+                    "players": total["n"], "pool": config.P2E_POOL, "share_pct": round(share, 4),
+                    "estimate": round(min(est, cap)), "capped": est > cap,
+                    "min_ok": mine >= config.MIN_POINTS})
             if p == "/api/shop/stars_order":
                 prod = str(data.get("product", ""))
                 if prod not in config.STARS_PRODUCTS:

@@ -29,9 +29,9 @@ ENERGY_REGEN_PER_SEC = 1
 ZEUS_MULTIPLIER = 5
 RIGS = {
     "pickaxe":  {"cost": 100,   "per_sec": 1,   "name": "Αξίνα"},
-    "dwarf":    {"cost": 500,   "per_sec": 6,   "name": "Νάνος"},
-    "stoa":     {"cost": 2000,  "per_sec": 30,  "name": "Στοά"},
-    "triaina":  {"cost": 10000, "per_sec": 180, "name": "Τρίαινα"},
+    "dwarf":    {"cost": 500,   "per_sec": 5,   "name": "Νάνος"},
+    "stoa":     {"cost": 2000,  "per_sec": 25,  "name": "Στοά"},
+    "triaina":  {"cost": 10000, "per_sec": 120, "name": "Τρίαινα"},
 }
 OFFLINE_CAP_SEC = 8 * 3600
 ORACLES = [
@@ -46,12 +46,12 @@ POLIS_NAMES = {"athens": "Αθήνα", "sparta": "Σπάρτη", "crete": "Κρ�
 STARS_PRODUCTS = {
     "energy_full": {"title": "⚡ Full Energy", "desc": "Γέμισε ενέργεια στο 1000", "stars": 10, "effect": "energy"},
     "shield_7d":   {"title": "🛡️ Ασπίδα 7 ημερών", "desc": "Προστασία από raids", "stars": 50, "effect": "shield"},
-    "turbo_rig":   {"title": "🚀 Turbo Rig", "desc": "+50/sec για πάντα", "stars": 150, "effect": "turbo"},
+    "turbo_rig":   {"title": "🚀 Turbo Rig", "desc": "+12/sec για πάντα", "stars": 150, "effect": "turbo"},
 }
 TON_WALLET = os.environ.get("TON_WALLET", "")
 TON_PREMIUM_PRICE = float(os.environ.get("TON_PREMIUM_PRICE", "0.5"))
 TON_API_KEY = os.environ.get("TON_API_KEY", "")
-PREMIUM_RIG_PER_SEC = 50
+PREMIUM_RIG_PER_SEC = 12
 
 # --- Olympos extras: daily, quests, tournament, ads ---
 DAILY_REWARDS = [0, 100, 200, 350, 500, 750, 1000, 1500]
@@ -66,3 +66,10 @@ ADSGRAM_BLOCK_ID = os.environ.get("ADSGRAM_BLOCK_ID", "")
 ADS_REWARD_ENERGY = 400
 ADS_COOLDOWN_SEC = 60
 ADS_MAX_PER_DAY = 20
+
+# --- Tokenomics: MYTH Jetton (fixed supply, proportional conversion) ---
+TOKEN_NAME = "MYTH"
+TOKEN_SUPPLY = 100_000_000
+P2E_POOL = 40_000_000
+MAX_SHARE_PCT = 2.0
+MIN_POINTS = 1000
