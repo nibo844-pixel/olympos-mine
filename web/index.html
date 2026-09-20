@@ -136,6 +136,13 @@ tr.me td{color:var(--gold2);font-weight:800}
 </div>
 
 <div class="card">
+<b class="ttl">🎡 <span data-i18n="spin">Τροχός Τύχης</span></b>
+<div class="muted" id="spinInfo">…</div>
+<div id="spinPrizes" class="muted" style="margin-top:6px"></div>
+<button class="btn2" id="spinBtn" style="width:100%;margin-top:8px">🎡 Spin</button>
+</div>
+
+<div class="card">
 <b class="ttl">📜 <span data-i18n="quests">Αποστολές</span></b>
 <div id="questList"></div>
 </div>
@@ -165,7 +172,7 @@ tr.me td{color:var(--gold2);font-weight:800}
 </div>
 
 <div class="card">
-<b class="ttl">👥 <span data-i18n="ref">Φέρε Οπλίτες (10% για πάντα + 100 bonus)</span></b>
+<b class="ttl">👥 <span data-i18n="ref">Φέρε Οπλίτες (10%/3%/1% + bonus + σπιν)</span></b>
 <div class="muted" id="ref">…</div>
 <table id="refTop" style="margin-top:8px"></table>
 <div class="row" style="margin-top:8px"><button class="btn2" id="copy" data-i18n="copylink">Αντιγραφή link</button><button class="btn2" id="shareRef" data-i18n="share">Κοινοποίηση ✈️</button></div>
@@ -215,7 +222,7 @@ persec:"/sec",polis:"Πόλη",c_athens:"Αθήνα",c_sparta:"Σπάρτη",c_c
 tap:"ΣΚΑΨΕ (+1)",zeustip:"Tip: όταν ανάβει ο κεραυνός, κάθε tap δίνει x5.",shop:"Ορυχεία (δουλεύουν offline 8h)",claim:"Claim offline κέρδη",
 buy:"Αγορά",oracle:"Χρησμός",oracleph:"απάντηση…",oracle_ok:"Σωστό! +500 $MYTH 🎉",oracle_no:"Λάθος / ή το έκανες ήδη ❌",
 raid:"Επιδρομή (1 / 20h)",raidbtn:"Κάνε επιδρομή για 50-200 $MYTH",raid_ok:"Loot: +{x} $MYTH ⚔️",raid_no:"Έλα αργότερα! ⏳",
-ref:"Φέρε Οπλίτες (10% για πάντα + 100 bonus)",copylink:"Αντιγραφή link",share:"Κοινοποίηση ✈️",copied:"Αντιγράφηκε! Στείλτο σε φίλους 👥",
+ref:"Φέρε Οπλίτες (10%/3%/1% + bonus + σπιν)",copylink:"Αντιγραφή link",share:"Κοινοποίηση ✈️",copied:"Αντιγράφηκε! Στείλτο σε φίλους 👥",
 sharetext:"Έλα στο Olympos Mine! Σκάψε $MYTH ⛏️",stars:"Stars Shop",starsdesc:"Πλήρωσε με Telegram Stars μέσα από το Telegram.",
 ton:"TON Premium (μόνιμο εισόδημα 💎)",txph:"tx hash από το πορτοφόλι…",ton_on:"💎 Premium rig ενεργό! +50/sec",
 step1:"Στείλε <b>{p} TON</b> εδώ:",step2:"Βάλε σχόλιο (comment) το UID σου:",step3:"Κόλλησε το tx hash και πάτα Verify ✅",
@@ -231,14 +238,14 @@ ads:"Διαφήμιση = Ενέργεια",adswatch:"Δες βίντεο +⚡",
 conv:"🪙 Εκτίμηση: ≈ <b>{e}</b> MYTH ({p}% του pool)",conv_no:"🪙 Σκάψε τουλάχιστον 1.000 πόντους για μετατροπή.",
 earn:"Κέρδη σου",fromfriends:"από φίλους",
 earn_how:"Έτσι βγάζεις λεφτά: 1) Σκάβεις πόντους $MYTH κάθε μέρα. 2) Στο λανσάρισμα γίνονται αληθινά tokens (πάνω η εκτίμησή σου). 3) Φέρνεις φίλους = +10% από όσα σκάβουν, για πάντα. 4) Τουρνουά κάθε εβδομάδα με έπαθλα.",
-tasks:"Εβδομαδιαία Tasks",task_invite1:"Φέρε 1 φίλο",task_earn50k:"Σκάψε 50.000 συνολικά",task_rigs5:"Απόκτησε 5 ορυχεία",task_streak3:"3 μέρες σερί δώρο",task_join:"Μπες στο κανάλι μας",t_open:"Άνοιγμα",tank:"Ρεζερβουάρ ενέργειας",tank_buy:"+{x} χώρος ({c} $MYTH)",tank_max:"ΜΑΧ ρεζερβουάρ 🏆",lg0:"🥉 Χάλκινη",lg1:"🥈 Ασημένια",lg2:"🥇 Χρυσή",lg3:"💎 Διαμαντένια",lg4:"🏛️ Μυθική",
-combo:"Ημερήσιο Combo",combo_need:"Αγόρασε και τα 3 για το έπαθλο 👆",combo_ok:"Combo! +{x} $MYTH 🃏",combo_no:"Σου λείπουν κάρτες 🃏",combo_has:"Έχεις το",combo_miss:"Λείπει",multitap:"Δύναμη tap",tap_lv:"Επίπεδο {x} (κάθε tap δίνει +{x})",tap_max:"ΜΑΧ δύναμη 👆",reflead:"🏆 Top στρατολόγοι",community:"Κοινότητα",join_group:"Μπες στο γκρουπ",group_desc:"Μπες στο γκρουπ Myth για νέα, δώρα και βοήθεια."},
+tasks:"Εβδομαδιαία Tasks",task_invite1:"Φέρε 1 φίλο",task_invite3:"Φέρε 3 φίλους",task_invite10:"Φέρε 10 φίλους",task_earn50k:"Σκάψε 50.000 συνολικά",task_rigs5:"Απόκτησε 5 ορυχεία",task_streak3:"3 μέρες σερί δώρο",task_join:"Μπες στο κανάλι μας",t_open:"Άνοιγμα",tank:"Ρεζερβουάρ ενέργειας",tank_buy:"+{x} χώρος ({c} $MYTH)",tank_max:"ΜΑΧ ρεζερβουάρ 🏆",lg0:"🥉 Χάλκινη",lg1:"🥈 Ασημένια",lg2:"🥇 Χρυσή",lg3:"💎 Διαμαντένια",lg4:"🏛️ Μυθική",
+combo:"Ημερήσιο Combo",combo_need:"Αγόρασε και τα 3 για το έπαθλο 👆",combo_ok:"Combo! +{x} $MYTH 🃏",combo_no:"Σου λείπουν κάρτες 🃏",combo_has:"Έχεις το",combo_miss:"Λείπει",multitap:"Δύναμη tap",tap_lv:"Επίπεδο {x} (κάθε tap δίνει +{x})",tap_max:"ΜΑΧ δύναμη 👆",reflead:"🏆 Top στρατολόγοι",spin:"Τροχός Τύχης",spin_info:"1 δωρεάν σπιν τη μέρα + 1 για κάθε φίλο που φέρνεις.",spin_btn:"ΣΠΙΝΑΡΩ 🎡",spin_free:"Δωρεάν σπιν: {x}",spin_bonus:"Έξτρα σπιν: {x}",spin_win:"Κέρδισες {x}! 🎉",spin_none:"Έλα αύριο για δωρεάν σπιν 🙂",community:"Κοινότητα",join_group:"Μπες στο γκρουπ",group_desc:"Μπες στο γκρουπ Myth για νέα, δώρα και βοήθεια."},
 en: {subtitle:"Mine $MYTH • Pick your City • Solve the Oracle",connecting:"🔄 Connecting…",online:"🟢 Connected!",offline:"🔴 Can't reach server. Try again.",
 persec:"/sec",polis:"City",c_athens:"Athens",c_sparta:"Sparta",c_crete:"Crete",zeus:"ZEUS BOLT — x5 for 5s! TAP NOW!",
 tap:"MINE (+1)",zeustip:"Tip: while the bolt flashes, every tap pays x5.",shop:"Rigs (work offline 8h)",claim:"Claim offline earnings",
 buy:"Buy",oracle:"Oracle",oracleph:"answer…",oracle_ok:"Correct! +500 $MYTH 🎉",oracle_no:"Wrong / already done ❌",
 raid:"Raid (1 / 20h)",raidbtn:"Raid for 50-200 $MYTH",raid_ok:"Loot: +{x} $MYTH ⚔️",raid_no:"Come back later! ⏳",
-ref:"Bring Hoplites (10% forever + 100 bonus)",copylink:"Copy link",share:"Share ✈️",copied:"Copied! Send it to friends 👥",
+ref:"Bring Hoplites (10%/3%/1% + bonus + spin)",copylink:"Copy link",share:"Share ✈️",copied:"Copied! Send it to friends 👥",
 sharetext:"Join Olympos Mine! Mine $MYTH ⛏️",stars:"Stars Shop",starsdesc:"Pay with Telegram Stars inside Telegram.",
 ton:"TON Premium (permanent income 💎)",txph:"tx hash from your wallet…",ton_on:"💎 Premium rig active! +50/sec",
 step1:"Send <b>{p} TON</b> here:",step2:"Put your UID as comment:",step3:"Paste the tx hash and press Verify ✅",
@@ -254,8 +261,8 @@ ads:"Ads = Energy",adswatch:"Watch video +⚡",adsinfo:"Watch a short video for 
 conv:"🪙 Estimate: ≈ <b>{e}</b> MYTH ({p}% of pool)",conv_no:"🪙 Mine at least 1,000 points to convert.",
 earn:"Your Earnings",fromfriends:"from friends",
 earn_how:"How you earn: 1) Mine $MYTH points daily. 2) At launch they become real tokens (estimate above). 3) Bring friends = +10% of all they mine, forever. 4) Weekly tournament with prizes.",
-tasks:"Weekly Tasks",task_invite1:"Invite 1 friend",task_earn50k:"Mine 50,000 total",task_rigs5:"Own 5 rigs",task_streak3:"3-day gift streak",task_join:"Join our channel",t_open:"Open",tank:"Energy tank",tank_buy:"+{x} cap ({c} $MYTH)",tank_max:"MAX tank 🏆",lg0:"🥉 Bronze",lg1:"🥈 Silver",lg2:"🥇 Gold",lg3:"💎 Diamond",lg4:"🏛️ Mythic",
-combo:"Daily Combo",combo_need:"Own all 3 for the prize 👆",combo_ok:"Combo! +{x} $MYTH 🃏",combo_no:"Missing cards 🃏",combo_has:"Owned",combo_miss:"Missing",multitap:"Tap power",tap_lv:"Level {x} (each tap +{x})",tap_max:"MAX power 👆",reflead:"🏆 Top recruiters",community:"Community",join_group:"Join the group",group_desc:"Join the Myth group for news, gifts and help."}
+tasks:"Weekly Tasks",task_invite1:"Invite 1 friend",task_invite3:"Bring 3 friends",task_invite10:"Bring 10 friends",task_earn50k:"Mine 50,000 total",task_rigs5:"Own 5 rigs",task_streak3:"3-day gift streak",task_join:"Join our channel",t_open:"Open",tank:"Energy tank",tank_buy:"+{x} cap ({c} $MYTH)",tank_max:"MAX tank 🏆",lg0:"🥉 Bronze",lg1:"🥈 Silver",lg2:"🥇 Gold",lg3:"💎 Diamond",lg4:"🏛️ Mythic",
+combo:"Daily Combo",combo_need:"Own all 3 for the prize 👆",combo_ok:"Combo! +{x} $MYTH 🃏",combo_no:"Missing cards 🃏",combo_has:"Owned",combo_miss:"Missing",multitap:"Tap power",tap_lv:"Level {x} (each tap +{x})",tap_max:"MAX power 👆",reflead:"🏆 Top recruiters",spin:"Lucky Wheel",spin_info:"1 free spin daily + 1 per invited friend.",spin_btn:"SPIN 🎡",spin_free:"Free spins: {x}",spin_bonus:"Bonus spins: {x}",spin_win:"You won {x}! 🎉",spin_none:"Come back tomorrow for a free spin 🙂",community:"Community",join_group:"Join the group",group_desc:"Join the Myth group for news, gifts and help."}
 };
 function t(k, vars){ let s = (I[LANG] && I[LANG][k]) || I.el[k] || k; if(vars) for(const k2 in vars) s = s.replace("{"+k2+"}", vars[k2]); return s; }
 function applyI18n(){
@@ -453,7 +460,28 @@ document.getElementById("adsBtn").onclick = async ()=>{
     }
   }catch(e){}
 };
-quests(); tasks(); combo(); refboard();
+quests(); tasks(); combo(); refboard(); spin();
+async function spin(){
+  const j = await post("/api/spin",{user_id:UID}).catch(()=>null);
+  const info = document.getElementById("spinInfo"), btn = document.getElementById("spinBtn"), pl = document.getElementById("spinPrizes");
+  if(!info || !j || !j.ok) return;
+  const sp = j.spin;
+  info.textContent = t("spin_info") + " " + t("spin_free",{x:sp.free}) + " • " + t("spin_bonus",{x:sp.bonus});
+  if(pl) pl.innerHTML = "🎁 " + sp.prizes.map(x=>x.label).join(" • ");
+  if(btn){
+    const n = sp.free + sp.bonus;
+    btn.disabled = n <= 0;
+    btn.textContent = n > 0 ? t("spin_btn") + ` (${n})` : t("spin_none");
+    btn.onclick = async ()=>{
+      btn.disabled = true;
+      const r = await post("/api/spin",{user_id:UID,do:1});
+      buzz(r.ok?"ok":"err");
+      if(r.ok){ alert(t("spin_win",{x:r.prize.label})); refresh(); }
+      spin();
+    };
+  }
+}
+loop(spin, 30000, 5000);
 document.getElementById("tonBuy").onclick = async ()=>{
   const tx = document.getElementById("tonTx").value.trim();
   if(!tx){ alert(t("ton_need_wallet")); return; }

@@ -81,3 +81,16 @@ COMBO_REWARD = int(os.environ.get("COMBO_REWARD", "1500"))
 MULTITAP_BASE_COST = int(os.environ.get("MULTITAP_BASE_COST", "500"))
 MULTITAP_MAX = int(os.environ.get("MULTITAP_MAX", "10"))
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
+
+# --- Lucky Spin (ρόδα τύχης): 1 δωρεάν σπιν/μέρα + bonus από προσκλήσεις ---
+SPIN_PRIZES = [
+    {"label": "+100 $MYTH", "myth": 100, "energy": 0, "w": 30},
+    {"label": "+250 $MYTH", "myth": 250, "energy": 0, "w": 25},
+    {"label": "+300 ⚡", "myth": 0, "energy": 300, "w": 20},
+    {"label": "+500 $MYTH", "myth": 500, "energy": 0, "w": 15},
+    {"label": "+1.500 $MYTH", "myth": 1500, "energy": 0, "w": 7},
+    {"label": "🎯 +5.000 $MYTH", "myth": 5000, "energy": 0, "w": 3},
+]
+# --- Referrals 3 επιπέδων (σαν HumanPass): % από taps + bonus εγγραφής ---
+REF_PCTS = [0.10, 0.03, 0.01]
+REF_BONUS = [100, 30, 10]

@@ -38,7 +38,7 @@ def send_start(chat_id, referrer=""):
         [{"text": "💬 Μπες στο γκρουπ Myth", "url": GROUP_URL}],
     ]}
     api("sendMessage", {"chat_id": chat_id,
-        "text": "🏛️ Olympos Mine!\n\nΣκάψε $MYTH • Διάλεξε Πόλη • Κέρδισε στο τουρνουά.\n\n⚡ x5 κεραυνός • 🔮 χρησμός • 👥 φέρε φίλους = 10% για πάντα\n💬 Νέα + δώρα στο γκρουπ: @aetagent",
+        "text": "🏛️ Olympos Mine!\n\nΣκάψε $MYTH • Διάλεξε Πόλη • Κέρδισε στο τουρνουά.\n\n⚡ x5 κεραυνός • 🎡 ρόδα τύχης • 🔮 χρησμός\n👥 φέρε φίλους = 10%/3%/1% + έξτρα σπιν\n💬 Νέα + δώρα στο γκρουπ: @aetagent",
         "reply_markup": kb})
 
 def send_welcome(chat_id, name=""):
@@ -59,7 +59,30 @@ def main():
         return
     print("Bot polling (Stars enabled)...")
     off = 0
+    import datetime as _dt
+    _msgs = [
+        "🏛️ Olympos Mine! Το δωρεάν σπιν σου σε περιμένει 🎡 Μπες, σπινάρισε και σκάψε $MYTH! 👇 @Neobot26_bot",
+        "⚔️ Τουρνουά Πόλεων: Αθήνα vs Σπάρτη vs Κρήτη! Διάλεξε πόλη και σκάψε για bonus 🏆 @Neobot26_bot",
+        "👥 Φέρε 1 φίλο = +500 task + 100 bonus + έξτρα σπιν 🎡 Στείλε το link σου σήμερα! @Neobot26_bot",
+        "🔮 Έλυσες τον χρησμό σήμερα; +500 $MYTH σε 10 δευτερόλεπτα! @Neobot26_bot",
+        "🎁 Ημερήσιο δώρο + 🎡 σπιν + ⚔️ raid = 3 κλικ, χιλιάδες $MYTH. Μπες τώρα! @Neobot26_bot",
+    ]
+    _dayf = "/tmp/olympos_lastpost.txt"
+    def _maybe_post():
+        try:
+            day = _dt.datetime.utcnow().strftime("%Y-%m-%d")
+            last = open(_dayf).read().strip() if os.path.isfile(_dayf) else ""
+            if last == day:
+                return
+            idx = int(_dt.datetime.utcnow().strftime("%j")) % len(_msgs)
+            url = WEBAPP_URL
+            kb = {"inline_keyboard": [[{"text": "⛏️ Παίξε εδώ", "url": url}]]}
+            api("sendMessage", {"chat_id": "@aetagent", "text": _msgs[idx], "reply_markup": kb})
+            open(_dayf, "w").write(day)
+        except Exception as e:
+            print("autopost skip:", str(e)[:120])
     while True:
+        _maybe_post()
         try:
             res = api("getUpdates", {"offset": off, "timeout": 25})
             for up in res.get("result", []):

@@ -105,7 +105,9 @@ def _init(c):
                      ("ads_day","TEXT DEFAULT ''"),("ads_n","INTEGER DEFAULT 0"),
                      ("total_earned","REAL DEFAULT 0"),("ref_earned","REAL DEFAULT 0"),
                      ("energy_max","INTEGER DEFAULT 1000"),
-                     ("tap_level","INTEGER DEFAULT 1")]:
+                     ("tap_level","INTEGER DEFAULT 1"),
+                     ("last_spin_day","TEXT DEFAULT ''"),
+                     ("bonus_spins","INTEGER DEFAULT 0")]:
         try:
             c.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
             c.commit()
@@ -311,6 +313,8 @@ def quest_claimed(c, uid):
 
 TASKS = [
     {"code": "task_invite1", "need": 1, "reward": 500},
+    {"code": "task_invite3", "need": 3, "reward": 1500},
+    {"code": "task_invite10", "need": 10, "reward": 5000},
     {"code": "task_earn50k", "need": 50000, "reward": 1000},
     {"code": "task_rigs5", "need": 5, "reward": 800},
     {"code": "task_streak3", "need": 3, "reward": 600},
@@ -332,11 +336,59 @@ def task_member_ok(uid):
     except Exception:
         return False
 
+def ref_chain(c, u):
+    """Επιστρέφει [L1, L2, L3] user_ids προσκλητών ('' αν λείπει)."""
+    chain = []
+    cur = (u.get("referrer") or "").strip()
+    for _ in range(3):
+        if not cur:
+            chain.append("")
+            continue
+        chain.append(cur)
+        try:
+            r = _row(c.execute("SELECT referrer FROM users WHERE user_id=?", (cur,)).fetchone())
+            cur = (r["referrer"] or "").strip() if r else ""
+        except Exception:
+            cur = ""
+    return chain[:3]
+
+def pay_chain(c, uid, gain):
+    """Μοιράζει % του gain στα 3 επίπεδα + μετράει ref_earned."""
+    try:
+        u = get_user(c, uid)
+        if not u:
+            return
+        for lvl, rid in enumerate(ref_chain(c, u)):
+            if not rid or rid == uid:
+                continue
+            amt = gain * config.REF_PCTS[lvl]
+            if amt <= 0:
+                continue
+            c.execute("UPDATE users SET myth=myth+?, total_earned=COALESCE(total_earned,0)+?, ref_earned=COALESCE(ref_earned,0)+? WHERE user_id=?", (amt, amt, amt, rid))
+    except Exception:
+        pass
+
+def spin_roll():
+    import random as _r
+    tot = sum(pr["w"] for pr in config.SPIN_PRIZES)
+    x = _r.uniform(0, tot)
+    for pr in config.SPIN_PRIZES:
+        x -= pr["w"]
+        if x <= 0:
+            return pr
+    return config.SPIN_PRIZES[0]
+
+def spin_state(u):
+    day = time.strftime("%Y-%m-%d")
+    free = 1 if (u.get("last_spin_day") or "") != day else 0
+    return {"free": free, "bonus": int(u.get("bonus_spins") or 0),
+            "prizes": [{"label": pr["label"], "myth": pr["myth"], "energy": pr["energy"]} for pr in config.SPIN_PRIZES]}
+
 def task_progress(c, u, rigs):
     out = []
     for q in TASKS:
         code = q["code"]
-        if code == "task_invite1":
+        if code.startswith("task_invite") and code != "task_invite1x":
             try:
                 n = _row(c.execute("SELECT COUNT(*) n FROM users WHERE referrer=?", (u["user_id"],)).fetchone())["n"] or 0
             except Exception:
@@ -599,7 +651,20 @@ class H(BaseHTTPRequestHandler):
                 if not u:
                     if referrer and referrer != uid and get_user(c, referrer):
                         try:
-                            c.execute("UPDATE users SET myth=myth+100 WHERE user_id=?", (referrer,))
+                            r1 = get_user(c, referrer)
+                            chain = [referrer]
+                            cur = (r1.get("referrer") or "").strip()
+                            for _ in range(2):
+                                if not cur:
+                                    break
+                                chain.append(cur)
+                                rr = get_user(c, cur)
+                                cur = (rr.get("referrer") or "").strip() if rr else ""
+                            for lvl, rid in enumerate(chain[:3]):
+                                b = config.REF_BONUS[lvl] if lvl < len(config.REF_BONUS) else 0
+                                if b:
+                                    c.execute("UPDATE users SET myth=myth+?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?", (b, b, rid))
+                            c.execute("UPDATE users SET bonus_spins=COALESCE(bonus_spins,0)+1 WHERE user_id=?", (referrer,))
                         except Exception:
                             pass
                     else:
@@ -641,11 +706,7 @@ class H(BaseHTTPRequestHandler):
                 energy -= taps
                 myth = u["myth"] + gain
                 c.execute("UPDATE users SET myth=?, energy=?, taps_total=COALESCE(taps_total,0)+?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?", (myth, energy, taps, gain, uid))
-                if u["referrer"]:
-                    try:
-                        c.execute("UPDATE users SET myth=myth+?, total_earned=COALESCE(total_earned,0)+?, ref_earned=COALESCE(ref_earned,0)+? WHERE user_id=?", (gain * 0.1, gain * 0.1, gain * 0.1, u["referrer"]))
-                    except Exception:
-                        pass
+                pay_chain(c, uid, gain)
                 c.commit()
                 return self.send_json({"ok": True, "gain": gain, "myth": round(myth, 1), "energy": int(energy)})
             if p == "/api/claim":
@@ -789,6 +850,27 @@ class H(BaseHTTPRequestHandler):
                 c.commit()
                 u = get_user(c, uid)
                 return self.send_json({"ok": True, "reward": prog["reward"], "myth": round(u["myth"], 1)})
+            if p == "/api/spin":
+                st = spin_state(u)
+                if not str(data.get("do", "")):
+                    return self.send_json({"ok": True, "spin": st})
+                day = time.strftime("%Y-%m-%d")
+                if st["free"] > 0:
+                    c.execute("UPDATE users SET last_spin_day=? WHERE user_id=?", (day, uid))
+                elif st["bonus"] > 0:
+                    c.execute("UPDATE users SET bonus_spins=COALESCE(bonus_spins,0)-1 WHERE user_id=?", (uid,))
+                else:
+                    return self.send_json({"ok": False, "error": "no spins"}, 400)
+                pr = spin_roll()
+                if pr["myth"]:
+                    c.execute("UPDATE users SET myth=myth+?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?", (pr["myth"], pr["myth"], uid))
+                if pr["energy"]:
+                    c.execute("UPDATE users SET energy=COALESCE(energy,0)+? WHERE user_id=?", (pr["energy"], uid))
+                    c.execute("UPDATE users SET energy=CASE WHEN energy>COALESCE(energy_max,1000) THEN COALESCE(energy_max,1000) ELSE energy END WHERE user_id=?", (uid,))
+                c.commit()
+                u = get_user(c, uid)
+                return self.send_json({"ok": True, "prize": {"label": pr["label"], "myth": pr["myth"], "energy": pr["energy"]},
+                                        "myth": round(u["myth"], 1), "energy": int(u["energy"]), "spin": spin_state(u)})
             if p == "/api/multitap":
                 lv = tap_level_of(u)
                 if lv >= config.MULTITAP_MAX:
