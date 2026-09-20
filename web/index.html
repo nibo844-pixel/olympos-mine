@@ -459,8 +459,9 @@ async function convert(){
     if (j.ok) el.innerHTML = j.min_ok ? t("conv",{e:Math.floor(j.estimate).toLocaleString(), p:j.share_pct}) : t("conv_no");
   }catch(e){}
 }
-applyI18n(); stars(); convert(); setInterval(convert, 30000);
-setInterval(refresh, 5000); setInterval(board, 10000); setInterval(season, 15000);
+function loop(fn, base, jit){ (function go(){ Promise.resolve(fn()).catch(()=>{}); setTimeout(go, base + Math.random()*jit); })(); }
+applyI18n(); stars(); convert(); loop(convert, 30000, 5000);
+loop(refresh, 5000, 2000); loop(board, 10000, 3000); loop(season, 15000, 4000); loop(quests, 30000, 5000);
 init();
 </script>
 </body>

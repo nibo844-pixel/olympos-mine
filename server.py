@@ -294,6 +294,7 @@ def check_rate(uid, min_interval=0.4):
     return True
 
 class H(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
     server_version = "OlymposMine/1.0"
 
     def log_message(self, *a):
