@@ -71,6 +71,13 @@ def _init(c):
     c.execute("CREATE TABLE IF NOT EXISTS wallets(user_id TEXT PRIMARY KEY, ton_address TEXT, updated INTEGER)")
     c.execute("CREATE TABLE IF NOT EXISTS quests(user_id TEXT, code TEXT, claimed INTEGER DEFAULT 0, PRIMARY KEY(user_id, code))") if c.pg else c.execute("CREATE TABLE IF NOT EXISTS quests(user_id TEXT, code TEXT, claimed INTEGER DEFAULT 0, PRIMARY KEY(user_id, code))")
     c.execute("CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT)")
+    try:
+        c.execute("UPDATE users SET total_earned=myth WHERE COALESCE(total_earned,0)=0 AND myth>0")
+    except Exception:
+        try:
+            c.rollback()
+        except Exception:
+            pass
     for col, ddl in [("shield_until","INTEGER DEFAULT 0"),("turbo","INTEGER DEFAULT 0"),
                      ("ton_wallet","TEXT DEFAULT ''"),("premium","INTEGER DEFAULT 0"),
                      ("taps_total","INTEGER DEFAULT 0"),("last_daily","INTEGER DEFAULT 0"),
