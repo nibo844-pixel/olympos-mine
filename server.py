@@ -36,6 +36,9 @@ class DB:
             pass
     def close(self):
         try:
+            if getattr(self, "pooled", False) and _PGPOOL is not None:
+                _PGPOOL.putconn(self.conn)
+                return
             return self.conn.close()
         except Exception:
             pass
@@ -43,16 +46,39 @@ class DB:
 def _row(r):
     return None if r is None else dict(r)
 
+_PGPOOL = None
+_INIT_DONE = False
+
 def db():
+    global _PGPOOL, _INIT_DONE
     if PG:
-        c = DB(psycopg2.connect(os.environ["DATABASE_URL"]), True)
-        c.execute("SELECT 1")
-        return _init(c)
+        if _PGPOOL is None:
+            from psycopg2 import pool as _pgpool
+            _PGPOOL = _pgpool.ThreadedConnectionPool(1, 12, os.environ["DATABASE_URL"])
+        c = DB(_PGPOOL.getconn(), True)
+        c.pooled = True
+        if not _INIT_DONE:
+            _init(c)
+            _INIT_DONE = True
+        return c
     os.makedirs(os.path.dirname(config.DB_PATH), exist_ok=True)
     _sq = sqlite3.connect(config.DB_PATH)
     _sq.row_factory = sqlite3.Row
     c = DB(_sq, False)
-    return _init(c)
+    if not _INIT_DONE:
+        _init(c)
+        _INIT_DONE = True
+    return c
+
+_CACHE = {}
+
+def cached(key, ttl, fn):
+    now = time.time()
+    if key in _CACHE and now - _CACHE[key][0] < ttl:
+        return _CACHE[key][1]
+    val = fn()
+    _CACHE[key] = (now, val)
+    return val
 
 DDL_QUESTS = "CREATE TABLE IF NOT EXISTS quests(user_id TEXT, code TEXT, claimed INTEGER DEFAULT 0, PRIMARY KEY(user_id, code))"
 DDL_META = "CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT)"
@@ -85,6 +111,10 @@ def _init(c):
             c.rollback()
     c.execute(DDL_QUESTS)
     c.execute(DDL_META)
+    try:
+        c.execute("CREATE INDEX IF NOT EXISTS idx_users_myth ON users(myth DESC)")
+    except Exception:
+        c.rollback()
     try:
         c.execute("UPDATE users SET total_earned=myth WHERE myth>COALESCE(total_earned,0)")
     except Exception:
@@ -343,48 +373,52 @@ class H(BaseHTTPRequestHandler):
                     "oracle": {"q": config.ORACLES[oi]["q"], "done": u["oracle_day"] == day},
                     "rigs_catalog": config.RIGS})
             if p.path == "/api/leaderboard":
-                rows = c.execute("SELECT user_id, username, myth, polis FROM users ORDER BY myth DESC LIMIT 20").fetchall()
-                return self.send_json({"ok": True, "top": [_row(r) for r in rows]})
+                def _board():
+                    rows = c.execute("SELECT user_id, username, myth, polis FROM users ORDER BY myth DESC LIMIT 20").fetchall()
+                    return {"ok": True, "top": [_row(r) for r in rows]}
+                return self.send_json(cached("board", 15, _board))
             if p.path == "/api/shop/catalog":
                 return self.send_json({"ok": True, "stars": config.STARS_PRODUCTS,
                     "ton": {"price": config.TON_PREMIUM_PRICE, "to": config.TON_WALLET,
                             "per_sec": config.PREMIUM_RIG_PER_SEC},
                     "adsgram": config.ADSGRAM_BLOCK_ID})
             if p.path == "/api/season":
-                rows = [_row(r) for r in c.execute("SELECT polis, SUM(myth) s, COUNT(*) n FROM users GROUP BY polis").fetchall()]
-                by = {r["polis"]: {"myth": round(float(r["s"] or 0)), "players": r["n"]} for r in rows}
-                for pol in config.POLIS_LIST:
-                    by.setdefault(pol, {"myth": 0, "players": 0})
-                week = now // (7 * 86400)
-                ends = (week + 1) * 7 * 86400 - now
-                leader = max(config.POLIS_LIST, key=lambda k: by[k]["myth"])
-                lastw = None
-                try:
-                    paid = meta_get(c, "season_paid_week")
-                    if paid is not None and paid != str(week):
-                        top = [_row(r) for r in c.execute(
-                            "SELECT user_id, username, myth FROM users WHERE polis=? ORDER BY myth DESC LIMIT 3",
-                            (leader,)).fetchall()]
-                        winners = []
-                        for i, w in enumerate(top):
-                            prize = config.TOURNAMENT_PRIZES[i] if i < len(config.TOURNAMENT_PRIZES) else 0
-                            if prize:
-                                c.execute("UPDATE users SET myth=myth+?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?", (prize, prize, w["user_id"]))
-                            winners.append({"username": w["username"] or w["user_id"], "prize": prize})
-                        meta_set(c, "season_paid_week", week)
-                        meta_set(c, "season_winners", json.dumps({"week": int(paid), "polis": leader, "winners": winners}))
-                        c.commit()
-                    elif paid is None:
-                        meta_set(c, "season_paid_week", week)
+                def _season():
+                    rows = [_row(r) for r in c.execute("SELECT polis, SUM(myth) s, COUNT(*) n FROM users GROUP BY polis").fetchall()]
+                    by = {r["polis"]: {"myth": round(float(r["s"] or 0)), "players": r["n"]} for r in rows}
+                    for pol in config.POLIS_LIST:
+                        by.setdefault(pol, {"myth": 0, "players": 0})
+                    week = now // (7 * 86400)
+                    ends = (week + 1) * 7 * 86400 - now
+                    leader = max(config.POLIS_LIST, key=lambda k: by[k]["myth"])
+                    lastw = None
                     try:
-                        lastw = json.loads(meta_get(c, "season_winners") or "null")
-                    except Exception:
-                        lastw = None
-                except Exception as e:
-                    return self.send_json({"ok": False, "error": "dbg:" + repr(e)}, 500)
-                return self.send_json({"ok": True, "polis": by, "ends_in_sec": ends, "leader": leader,
-                                       "names": config.POLIS_NAMES, "week": week,
-                                       "prizes": config.TOURNAMENT_PRIZES, "winners": lastw})
+                        paid = meta_get(c, "season_paid_week")
+                        if paid is not None and paid != str(week):
+                            top = [_row(r) for r in c.execute(
+                                "SELECT user_id, username, myth FROM users WHERE polis=? ORDER BY myth DESC LIMIT 3",
+                                (leader,)).fetchall()]
+                            winners = []
+                            for i, w in enumerate(top):
+                                prize = config.TOURNAMENT_PRIZES[i] if i < len(config.TOURNAMENT_PRIZES) else 0
+                                if prize:
+                                    c.execute("UPDATE users SET myth=myth+?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?", (prize, prize, w["user_id"]))
+                                winners.append({"username": w["username"] or w["user_id"], "prize": prize})
+                            meta_set(c, "season_paid_week", week)
+                            meta_set(c, "season_winners", json.dumps({"week": int(paid), "polis": leader, "winners": winners}))
+                            c.commit()
+                        elif paid is None:
+                            meta_set(c, "season_paid_week", week)
+                        try:
+                            lastw = json.loads(meta_get(c, "season_winners") or "null")
+                        except Exception:
+                            lastw = None
+                    except Exception as e:
+                        return {"ok": False, "error": "dbg:" + repr(e)}
+                    return {"ok": True, "polis": by, "ends_in_sec": ends, "leader": leader,
+                            "names": config.POLIS_NAMES, "week": week,
+                            "prizes": config.TOURNAMENT_PRIZES, "winners": lastw}
+                return self.send_json(cached("season", 20, _season))
             return self.send_json({"ok": False, "error": "unknown"}, 404)
         finally:
             c.close()
