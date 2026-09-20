@@ -107,7 +107,8 @@ def _init(c):
                      ("energy_max","INTEGER DEFAULT 1000"),
                      ("tap_level","INTEGER DEFAULT 1"),
                      ("last_spin_day","TEXT DEFAULT ''"),
-                     ("bonus_spins","INTEGER DEFAULT 0")]:
+                     ("bonus_spins","INTEGER DEFAULT 0"),
+                     ("tg_ok","INTEGER DEFAULT 0")]:
         try:
             c.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
             c.commit()
@@ -130,6 +131,28 @@ def norm(s):
     s = (s or "").strip().lower()
     s = "".join(ch for ch in unicodedata.normalize("NFD", s) if unicodedata.category(ch) != "Mn")
     return s.replace(" ", "")
+
+def verify_init_data(init_data, bot_token):
+    """Ελέγχει την υπογραφή του Telegram initData (όπως Blum/Hamster).
+    Επιστρέφει (user_id, username) ή (None, None)."""
+    import hashlib as _hl, hmac as _hm2
+    from urllib.parse import parse_qsl
+    try:
+        if not init_data or not bot_token:
+            return None, None
+        pairs = dict(parse_qsl(init_data, keep_blank_values=True))
+        got = pairs.pop("hash", None)
+        if not got:
+            return None, None
+        check = "\n".join(f"{k}={pairs[k]}" for k in sorted(pairs))
+        secret = _hm2.new(b"WebAppData", bot_token.encode(), _hl.sha256).digest()
+        calc = _hm2.new(secret, check.encode(), _hl.sha256).hexdigest()
+        if not _hm2.compare_digest(calc, got):
+            return None, None
+        u = json.loads(pairs.get("user", "{}"))
+        return str(u.get("id", "") or ""), str(u.get("username", "") or "")
+    except Exception:
+        return None, None
 
 def rigs_dict(row):
     try:
@@ -640,9 +663,16 @@ class H(BaseHTTPRequestHandler):
                 return self.send_json({"ok": True})
             if p == "/api/init":
                 uid = str(data.get("user_id", "") or "").strip()[:64]
+                username = str(data.get("username", "") or "")[:64]
+                vid, vname = verify_init_data(str(data.get("init_data", "") or ""), config.BOT_TOKEN)
+                if vid:
+                    uid, verified = vid, 1
+                    if vname:
+                        username = vname[:64]
+                else:
+                    verified = 0
                 if not uid:
                     return self.send_json({"ok": False, "error": "need user_id"}, 400)
-                username = str(data.get("username", "") or "")[:64]
                 polis = str(data.get("polis", "") or "athens")
                 if polis not in config.POLIS_LIST:
                     polis = "athens"
@@ -671,10 +701,20 @@ class H(BaseHTTPRequestHandler):
                         referrer = ""
                     c.execute("INSERT INTO users(user_id,username,myth,energy,polis,rigs,referrer,last_seen,last_claim,created) VALUES(?,?,?,?,?,?,?,?,?,?)",
                               (uid, username, 0, config.ENERGY_MAX, polis, "{}", referrer, now, now, now))
+                    if verified:
+                        try:
+                            c.execute("UPDATE users SET tg_ok=1 WHERE user_id=?", (uid,))
+                        except Exception:
+                            pass
                     c.commit()
                     u = get_user(c, uid)
                 else:
                     c.execute("UPDATE users SET username=?, last_seen=? WHERE user_id=?", (username or u["username"], now, uid))
+                    if verified:
+                        try:
+                            c.execute("UPDATE users SET tg_ok=1 WHERE user_id=?", (uid,))
+                        except Exception:
+                            pass
                     c.commit()
                     u = get_user(c, uid)
                 myth, energy, rigs, rate = touch(u, c, now)
