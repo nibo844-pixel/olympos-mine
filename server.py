@@ -75,7 +75,8 @@ def _init(c):
                      ("ton_wallet","TEXT DEFAULT ''"),("premium","INTEGER DEFAULT 0"),
                      ("taps_total","INTEGER DEFAULT 0"),("last_daily","INTEGER DEFAULT 0"),
                      ("daily_streak","INTEGER DEFAULT 0"),("last_ad","INTEGER DEFAULT 0"),
-                     ("ads_day","TEXT DEFAULT ''"),("ads_n","INTEGER DEFAULT 0")]:
+                     ("ads_day","TEXT DEFAULT ''"),("ads_n","INTEGER DEFAULT 0"),
+                     ("total_earned","REAL DEFAULT 0"),("ref_earned","REAL DEFAULT 0")]:
         try:
             c.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
         except Exception:
@@ -179,8 +180,8 @@ def touch(row, c, now):
     earn = rate * dt
     energy = min(config.ENERGY_MAX, (row["energy"] or 0) + max(0, now - (row["last_seen"] or now)) * config.ENERGY_REGEN_PER_SEC)
     myth = (row["myth"] or 0) + earn
-    c.execute("UPDATE users SET myth=?, energy=?, last_seen=?, last_claim=? WHERE user_id=?",
-              (myth, energy, now, now, row["user_id"]))
+    c.execute("UPDATE users SET myth=?, energy=?, last_seen=?, last_claim=?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?",
+              (myth, energy, now, now, earn, row["user_id"]))
     c.commit()
     return myth, energy, rigs, rate
 
@@ -196,7 +197,9 @@ def payload(u, rigs, rate):
             "turbo": u["turbo"] if "turbo" in k else 0,
             "premium": u["premium"] if "premium" in k else 0,
             "shield_until": u["shield_until"] if "shield_until" in k else 0,
-            "ton_wallet": u["ton_wallet"] if "ton_wallet" in k else ""}
+            "ton_wallet": u["ton_wallet"] if "ton_wallet" in k else "",
+            "total_earned": round(u["total_earned"] or 0, 1) if "total_earned" in k else 0,
+            "ref_earned": round(u["ref_earned"] or 0, 1) if "ref_earned" in k else 0}
 
 DDL_QUESTS = "CREATE TABLE IF NOT EXISTS quests(user_id TEXT, code TEXT, claimed INTEGER DEFAULT 0, PRIMARY KEY(user_id, code))"
 DDL_META = "CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT)"
@@ -361,7 +364,7 @@ class H(BaseHTTPRequestHandler):
                         for i, w in enumerate(top):
                             prize = config.TOURNAMENT_PRIZES[i] if i < len(config.TOURNAMENT_PRIZES) else 0
                             if prize:
-                                c.execute("UPDATE users SET myth=myth+? WHERE user_id=?", (prize, w["user_id"]))
+                                c.execute("UPDATE users SET myth=myth+?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?", (prize, prize, w["user_id"]))
                             winners.append({"username": w["username"] or w["user_id"], "prize": prize})
                         meta_set(c, "season_paid_week", week)
                         meta_set(c, "season_winners", json.dumps({"week": int(paid), "polis": leader, "winners": winners}))
@@ -474,10 +477,10 @@ class H(BaseHTTPRequestHandler):
                 gain = taps * config.TAP_REWARD * mult
                 energy -= taps
                 myth = u["myth"] + gain
-                c.execute("UPDATE users SET myth=?, energy=?, taps_total=COALESCE(taps_total,0)+? WHERE user_id=?", (myth, energy, taps, uid))
+                c.execute("UPDATE users SET myth=?, energy=?, taps_total=COALESCE(taps_total,0)+?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?", (myth, energy, taps, gain, uid))
                 if u["referrer"]:
                     try:
-                        c.execute("UPDATE users SET myth=myth+? WHERE user_id=?", (gain * 0.1, u["referrer"]))
+                        c.execute("UPDATE users SET myth=myth+?, total_earned=COALESCE(total_earned,0)+?, ref_earned=COALESCE(ref_earned,0)+? WHERE user_id=?", (gain * 0.1, gain * 0.1, gain * 0.1, u["referrer"]))
                     except Exception:
                         pass
                 c.commit()
@@ -506,7 +509,7 @@ class H(BaseHTTPRequestHandler):
                 ans = norm(data.get("answer", ""))
                 if ans and (ans in norm(config.ORACLES[oi]["a"]) or norm(config.ORACLES[oi]["a"]) in ans):
                     myth = u["myth"] + 500
-                    c.execute("UPDATE users SET myth=?, oracle_day=?, streak=streak+1 WHERE user_id=?", (myth, day, uid))
+                    c.execute("UPDATE users SET myth=?, oracle_day=?, streak=streak+1, total_earned=COALESCE(total_earned,0)+500 WHERE user_id=?", (myth, day, uid))
                     c.commit()
                     return self.send_json({"ok": True, "reward": 500, "myth": round(myth, 1)})
                 return self.send_json({"ok": False, "error": "wrong"})
@@ -515,7 +518,7 @@ class H(BaseHTTPRequestHandler):
                     return self.send_json({"ok": False, "error": "come back later"}, 400)
                 loot = random.randint(50, 200)
                 myth = u["myth"] + loot
-                c.execute("UPDATE users SET myth=?, last_raid=? WHERE user_id=?", (myth, now, uid))
+                c.execute("UPDATE users SET myth=?, last_raid=?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?", (myth, now, loot, uid))
                 c.commit()
                 return self.send_json({"ok": True, "loot": loot, "myth": round(myth, 1)})
             if p == "/api/daily":
@@ -526,8 +529,8 @@ class H(BaseHTTPRequestHandler):
                                            "streak": int(u.get("daily_streak", 0) or 0)}, 400)
                 streak = int(u.get("daily_streak", 0) or 0) + 1 if (now - last) < 48 * 3600 else 1
                 reward = config.DAILY_REWARDS[min(streak, 7)]
-                c.execute("UPDATE users SET myth=myth+?, last_daily=?, daily_streak=? WHERE user_id=?",
-                          (reward, now, streak, uid))
+                c.execute("UPDATE users SET myth=myth+?, last_daily=?, daily_streak=?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?",
+                          (reward, now, streak, reward, uid))
                 c.commit()
                 u = get_user(c, uid)
                 return self.send_json({"ok": True, "reward": reward, "streak": streak,
@@ -551,7 +554,7 @@ class H(BaseHTTPRequestHandler):
                     return self.send_json({"ok": False, "error": "claimed"}, 400)
                 if prog[code]["have"] < prog[code]["need"]:
                     return self.send_json({"ok": False, "error": "not done"}, 400)
-                c.execute("UPDATE users SET myth=myth+? WHERE user_id=?", (prog[code]["reward"], uid))
+                c.execute("UPDATE users SET myth=myth+?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?", (prog[code]["reward"], prog[code]["reward"], uid))
                 if c.pg:
                     c.execute("INSERT INTO quests(user_id,code,claimed) VALUES(?,?,1) ON CONFLICT(user_id,code) DO UPDATE SET claimed=1", (uid, code))
                 else:

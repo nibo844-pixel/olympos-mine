@@ -77,6 +77,12 @@ tr.me td{color:var(--gold2);font-weight:800}
 <div class="muted" style="margin-top:6px">🏗️ <span id="rate">0</span><span data-i18n="persec">/sec</span> • <span class="streakfire">🔥 <span id="streak">0</span></span></div>
 </div>
 
+<div class="card">
+<b class="ttl">💰 <span data-i18n="earn">Κέρδη σου</span></b>
+<div class="row" style="margin-top:6px"><div>📥 <b id="totEarn">0</b> <small class="muted">$MYTH</small></div><div style="text-align:right">👥 +<b id="refEarn">0</b> <small class="muted" data-i18n="fromfriends">από φίλους</small></div></div>
+<div class="muted" id="earnHow" style="margin-top:6px"></div>
+</div>
+
 <div class="card" id="polisCard">
 <b class="ttl">⚔️ <span data-i18n="polis">Πόλη</span></b>
 <div class="polis" style="margin-top:8px">
@@ -197,7 +203,9 @@ daily:"Ημερήσιο Δώρο",dclaim:"Πάρε το δώρο",dstreak:"Σε�
 quests:"Αποστολές",qclaim:"Πάρε",qdone:"Ολοκληρώθηκε ✅",qclaimed:"Ελήφθη ✅",q_tap100:"Κάνε 100 taps",q_rig3:"Απόκτησε 3 ορυχεία",q_oracle1:"Λύσε τον χρησμό",q_raid1:"Κάνε 1 επιδρομή",
 tourn:"Τουρνουά Πόλεων",tinfo:"Εβδομάδα {w} • Νικήτρια πόλη: {c} • Έπαθλα top3: {p} $MYTH",tends:" • λήγει σε {x}h",twinners:"Τελευταίοι νικητές ({c}): {w}",
 ads:"Διαφήμιση = Ενέργεια",adswatch:"Δες βίντεο +⚡",adsinfo:"Δες ένα σύντομο βίντεο και γέμισε +{x} ενέργεια. ({n} απομένουν σήμερα)",ads_ok:"+{x} ενέργεια! ⚡",ads_cool:"Περίμενε λίγο ⏳",ads_limit:"Έφτασες το ημερήσιο όριο 🙂",r5:"• Καθημερινό δώρο, αποστολές και τουρνουά με έπαθλα <b>$MYTH</b>.",
-conv:"🪙 Εκτίμηση: ≈ <b>{e}</b> MYTH ({p}% του pool)",conv_no:"🪙 Σκάψε τουλάχιστον 1.000 πόντους για μετατροπή."},
+conv:"🪙 Εκτίμηση: ≈ <b>{e}</b> MYTH ({p}% του pool)",conv_no:"🪙 Σκάψε τουλάχιστον 1.000 πόντους για μετατροπή.",
+earn:"Κέρδη σου",fromfriends:"από φίλους",
+earn_how:"Έτσι βγάζεις λεφτά: 1) Σκάβεις πόντους $MYTH κάθε μέρα. 2) Στο λανσάρισμα γίνονται αληθινά tokens (πάνω η εκτίμησή σου). 3) Φέρνεις φίλους = +10% από όσα σκάβουν, για πάντα. 4) Τουρνουά κάθε εβδομάδα με έπαθλα."},
 en: {subtitle:"Mine $MYTH • Pick your City • Solve the Oracle",connecting:"🔄 Connecting…",online:"🟢 Connected!",offline:"🔴 Can't reach server. Try again.",
 persec:"/sec",polis:"City",c_athens:"Athens",c_sparta:"Sparta",c_crete:"Crete",zeus:"ZEUS BOLT — x5 for 5s! TAP NOW!",
 tap:"MINE (+1)",zeustip:"Tip: while the bolt flashes, every tap pays x5.",shop:"Rigs (work offline 8h)",claim:"Claim offline earnings",
@@ -216,7 +224,9 @@ daily:"Daily Gift",dclaim:"Claim gift",dstreak:"Streak: {x} 🔥",dwait:"Come ba
 quests:"Quests",qclaim:"Claim",qdone:"Done ✅",qclaimed:"Claimed ✅",q_tap100:"Do 100 taps",q_rig3:"Own 3 rigs",q_oracle1:"Solve the oracle",q_raid1:"Do 1 raid",
 tourn:"City Tournament",tinfo:"Week {w} • Leading city: {c} • Top3 prizes: {p} $MYTH",tends:" • ends in {x}h",twinners:"Last winners ({c}): {w}",
 ads:"Ads = Energy",adswatch:"Watch video +⚡",adsinfo:"Watch a short video for +{x} energy. ({n} left today)",ads_ok:"+{x} energy! ⚡",ads_cool:"Wait a bit ⏳",ads_limit:"Daily limit reached 🙂",r5:"• Daily gift, quests and tournaments with <b>$MYTH</b> prizes.",
-conv:"🪙 Estimate: ≈ <b>{e}</b> MYTH ({p}% of pool)",conv_no:"🪙 Mine at least 1,000 points to convert."}
+conv:"🪙 Estimate: ≈ <b>{e}</b> MYTH ({p}% of pool)",conv_no:"🪙 Mine at least 1,000 points to convert.",
+earn:"Your Earnings",fromfriends:"from friends",
+earn_how:"How you earn: 1) Mine $MYTH points daily. 2) At launch they become real tokens (estimate above). 3) Bring friends = +10% of all they mine, forever. 4) Weekly tournament with prizes."}
 };
 function t(k, vars){ let s = (I[LANG] && I[LANG][k]) || I.el[k] || k; if(vars) for(const k2 in vars) s = s.replace("{"+k2+"}", vars[k2]); return s; }
 function applyI18n(){
@@ -224,6 +234,7 @@ function applyI18n(){
   document.querySelectorAll("[data-i18n-ph]").forEach(el=>{ el.placeholder = t(el.dataset.i18nPh); });
   document.getElementById("rewardsList").innerHTML = t("r1")+"<br>"+t("r2")+"<br>"+t("r3")+"<br>"+t("r4")+"<br>"+t("r5");
   document.getElementById("langEl").classList.toggle("on", LANG==="el");
+  document.getElementById("earnHow").textContent = t("earn_how");
   document.getElementById("langEn").classList.toggle("on", LANG==="en");
   document.documentElement.lang = LANG;
 }
@@ -256,6 +267,8 @@ function renderState(s){
   document.getElementById("enbar").style.width = (100*s.energy/s.energy_max)+"%";
   document.getElementById("rate").textContent = s.rate;
   document.getElementById("streak").textContent = s.streak;
+  document.getElementById("totEarn").textContent = Math.floor(s.total_earned||0).toLocaleString();
+  document.getElementById("refEarn").textContent = Math.floor(s.ref_earned||0).toLocaleString();
   localStorage.setItem("polis", s.polis);
   document.querySelectorAll("[data-p]").forEach(b=>b.classList.toggle("on", b.dataset.p===s.polis));
   renderShop(s);
