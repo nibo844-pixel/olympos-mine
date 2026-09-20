@@ -72,7 +72,7 @@ def _init(c):
     c.execute("CREATE TABLE IF NOT EXISTS quests(user_id TEXT, code TEXT, claimed INTEGER DEFAULT 0, PRIMARY KEY(user_id, code))") if c.pg else c.execute("CREATE TABLE IF NOT EXISTS quests(user_id TEXT, code TEXT, claimed INTEGER DEFAULT 0, PRIMARY KEY(user_id, code))")
     c.execute("CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT)")
     try:
-        c.execute("UPDATE users SET total_earned=myth WHERE COALESCE(total_earned,0)=0 AND myth>0")
+        c.execute("UPDATE users SET total_earned=myth WHERE myth>COALESCE(total_earned,0)")
     except Exception:
         try:
             c.rollback()
