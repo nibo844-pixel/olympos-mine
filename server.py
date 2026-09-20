@@ -536,6 +536,15 @@ class H(BaseHTTPRequestHandler):
         try:
             data = self.read_json()
             if p == "/webhook":
+                if config.WEBHOOK_SECRET:
+                    got = ""
+                    try:
+                        got = self.headers.get("X-Telegram-Bot-Api-Secret-Token", "") or ""
+                    except Exception:
+                        got = ""
+                    import hmac as _hm
+                    if not _hm.compare_digest(str(got), str(config.WEBHOOK_SECRET)):
+                        return self.send_json({"ok": False, "error": "forbidden"}, 403)
                 upd = data
                 msg0 = upd.get("message", {})
                 txt0 = str(msg0.get("text", "") or "")
@@ -821,6 +830,8 @@ class H(BaseHTTPRequestHandler):
                     return self.send_json({"ok": True, "invoice_link": r.get("result")})
                 return self.send_json({"ok": False, "error": r.get("description", "telegram error")}, 400)
             if p == "/api/shop/mock_claim":
+                if config.BOT_TOKEN:
+                    return self.send_json({"ok": False, "error": "demo only"}, 403)
                 prod = str(data.get("product", ""))
                 if prod not in config.STARS_PRODUCTS:
                     return self.send_json({"ok": False, "error": "bad product"}, 400)
