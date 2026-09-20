@@ -77,3 +77,6 @@ MIN_POINTS = 1000
 JOIN_CHAT = os.environ.get("JOIN_CHAT", "")
 TANK_STEP = int(os.environ.get("TANK_STEP", "500"))
 TANK_MAX = int(os.environ.get("TANK_MAX", "5000"))
+COMBO_REWARD = int(os.environ.get("COMBO_REWARD", "1500"))
+MULTITAP_BASE_COST = int(os.environ.get("MULTITAP_BASE_COST", "500"))
+MULTITAP_MAX = int(os.environ.get("MULTITAP_MAX", "10"))

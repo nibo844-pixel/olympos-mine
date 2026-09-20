@@ -104,7 +104,8 @@ def _init(c):
                      ("daily_streak","INTEGER DEFAULT 0"),("last_ad","INTEGER DEFAULT 0"),
                      ("ads_day","TEXT DEFAULT ''"),("ads_n","INTEGER DEFAULT 0"),
                      ("total_earned","REAL DEFAULT 0"),("ref_earned","REAL DEFAULT 0"),
-                     ("energy_max","INTEGER DEFAULT 1000")]:
+                     ("energy_max","INTEGER DEFAULT 1000"),
+                     ("tap_level","INTEGER DEFAULT 1")]:
         try:
             c.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
             c.commit()
@@ -252,6 +253,7 @@ def payload(u, rigs, rate):
     k = u.keys()
     return {"user_id": u["user_id"], "username": u["username"], "myth": round(u["myth"], 1),
             "energy": int(u["energy"]), "energy_max": emax_of(u),
+            "tap_level": tap_level_of(u),
             "league": league_of(u["total_earned"] if "total_earned" in k else 0),
             "polis": u["polis"], "rigs": rigs, "rate": rate, "streak": u["streak"],
             "turbo": u["turbo"] if "turbo" in k else 0,
@@ -353,6 +355,31 @@ def task_progress(c, u, rigs):
         out.append({"code": code, "need": q["need"], "have": have, "reward": q["reward"]})
     return out
 
+def tap_level_of(row):
+    try:
+        if "tap_level" in row.keys() and row["tap_level"]:
+            return max(1, min(config.MULTITAP_MAX, int(row["tap_level"])))
+    except Exception:
+        pass
+    return 1
+
+def combo_of_day(day=None):
+    import random as _r
+    if not day:
+        day = time.strftime("%Y-%m-%d")
+    keys = list(config.RIGS.keys())
+    seed = int(day.replace("-", ""))
+    return sorted(_r.Random(seed).sample(keys, min(3, len(keys)))), day
+
+def combo_progress(c, u, rigs):
+    codes, day = combo_of_day()
+    have = {k: int((rigs or {}).get(k, 0)) for k in codes}
+    done = all(have[k] >= 1 for k in codes)
+    code = "combo_" + day
+    claimed = code in quest_claimed(c, u["user_id"])
+    return {"code": code, "day": day, "cards": [{"rig": k, "name": config.RIGS[k]["name"], "owned": have[k]} for k in codes],
+            "done": done, "claimed": claimed, "reward": config.COMBO_REWARD}
+
 def check_rate(uid, min_interval=0.4):
     now = time.time()
     last = RATE.get(uid, 0)
@@ -446,6 +473,16 @@ class H(BaseHTTPRequestHandler):
                     rows = c.execute("SELECT user_id, username, myth, polis FROM users ORDER BY myth DESC LIMIT 20").fetchall()
                     return {"ok": True, "top": [_row(r) for r in rows]}
                 return self.send_json(cached("board", 15, _board))
+            if p.path == "/api/refboard":
+                def _refboard():
+                    rows = c.execute("SELECT referrer AS uid, COUNT(*) n FROM users WHERE referrer<>'' GROUP BY referrer ORDER BY n DESC LIMIT 10").fetchall()
+                    top = []
+                    for r in rows:
+                        rr = _row(r)
+                        un = _row(c.execute("SELECT username FROM users WHERE user_id=?", (rr["uid"],)).fetchone())
+                        top.append({"user_id": rr["uid"], "username": (un["username"] if un else "") or rr["uid"], "invites": rr["n"]})
+                    return {"ok": True, "top": top}
+                return self.send_json(cached("refboard", 30, _refboard))
             if p.path == "/api/shop/catalog":
                 return self.send_json({"ok": True, "stars": config.STARS_PRODUCTS,
                     "ton": {"price": config.TON_PREMIUM_PRICE, "to": config.TON_WALLET,
@@ -582,7 +619,7 @@ class H(BaseHTTPRequestHandler):
                 if energy < taps:
                     return self.send_json({"ok": False, "error": "no energy", "energy": int(energy)}, 400)
                 mult = config.ZEUS_MULTIPLIER if zeus else 1
-                gain = taps * config.TAP_REWARD * mult
+                gain = taps * config.TAP_REWARD * tap_level_of(u) * mult
                 energy -= taps
                 myth = u["myth"] + gain
                 c.execute("UPDATE users SET myth=?, energy=?, taps_total=COALESCE(taps_total,0)+?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?", (myth, energy, taps, gain, uid))
@@ -714,6 +751,36 @@ class H(BaseHTTPRequestHandler):
                 c.commit()
                 u = get_user(c, uid)
                 return self.send_json({"ok": True, "energy_max": emax, "cost": cost, "myth": round(u["myth"], 1)})
+            if p == "/api/combo":
+                try:
+                    prog = combo_progress(c, u, rigs)
+                except Exception as e:
+                    return self.send_json({"ok": False, "error": "dbg:" + repr(e)}, 500)
+                return self.send_json({"ok": True, "combo": prog})
+            if p == "/api/combo_claim":
+                prog = combo_progress(c, u, rigs)
+                if prog["claimed"]:
+                    return self.send_json({"ok": False, "error": "claimed"}, 400)
+                if not prog["done"]:
+                    return self.send_json({"ok": False, "error": "not done"}, 400)
+                c.execute("UPDATE users SET myth=myth+?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?", (prog["reward"], prog["reward"], uid))
+                if c.pg:
+                    c.execute("INSERT INTO quests(user_id,code,claimed) VALUES(?,?,1) ON CONFLICT(user_id,code) DO UPDATE SET claimed=1", (prog["code"], uid))
+                else:
+                    c.execute("INSERT OR REPLACE INTO quests(user_id,code,claimed) VALUES(?,?,1)", (prog["code"], uid))
+                c.commit()
+                u = get_user(c, uid)
+                return self.send_json({"ok": True, "reward": prog["reward"], "myth": round(u["myth"], 1)})
+            if p == "/api/multitap":
+                lv = tap_level_of(u)
+                if lv >= config.MULTITAP_MAX:
+                    return self.send_json({"ok": False, "error": "maxed"}, 400)
+                cost = config.MULTITAP_BASE_COST * (2 ** (lv - 1))
+                if (u["myth"] or 0) < cost:
+                    return self.send_json({"ok": False, "error": "need more MYTH", "cost": cost}, 400)
+                c.execute("UPDATE users SET myth=myth-?, tap_level=? WHERE user_id=?", (cost, lv + 1, uid))
+                c.commit()
+                return self.send_json({"ok": True, "tap_level": lv + 1, "cost": cost})
             if p == "/api/ads/reward":
                 day = time.strftime("%Y-%m-%d")
                 n = int(u.get("ads_n", 0) or 0) if u.get("ads_day") == day else 0

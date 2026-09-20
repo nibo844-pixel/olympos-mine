@@ -107,6 +107,7 @@ tr.me td{color:var(--gold2);font-weight:800}
 <b class="ttl">🏗️ <span data-i18n="shop">Ορυχεία (δουλεύουν offline 8h)</span></b>
 <div id="shop"></div>
 <div class="srow"><span>🛢️ <span data-i18n="tank">Ρεζερβουάρ ενέργειας</span><br><small class="muted" id="tankInfo"></small></span><button class="btn2" id="tankBtn">+500</button></div>
+<div class="srow"><span>👆 <span data-i18n="multitap">Δύναμη tap</span><br><small class="muted" id="tapInfo"></small></span><button class="btn2" id="tapBtn">+1</button></div>
 <button class="btn2" id="claim" style="width:100%;margin-top:8px">📥 <span data-i18n="claim">Claim offline κέρδη</span></button>
 </div>
 <div class="card">
@@ -137,6 +138,13 @@ tr.me td{color:var(--gold2);font-weight:800}
 </div>
 
 <div class="card">
+<b class="ttl">🃏 <span data-i18n="combo">Ημερήσιο Combo</span></b>
+<div class="muted" id="comboInfo"></div>
+<div id="comboList"></div>
+<button class="btn2" id="comboBtn" style="width:100%;margin-top:8px"></button>
+</div>
+
+<div class="card">
 <b class="ttl">🏆 <span data-i18n="tourn">Τουρνουά Πόλεων</span></b>
 <div class="muted" id="tournInfo">…</div>
 <div class="muted" id="tournWin" style="margin-top:6px"></div>
@@ -151,6 +159,7 @@ tr.me td{color:var(--gold2);font-weight:800}
 <div class="card">
 <b class="ttl">👥 <span data-i18n="ref">Φέρε Οπλίτες (10% για πάντα + 100 bonus)</span></b>
 <div class="muted" id="ref">…</div>
+<table id="refTop" style="margin-top:8px"></table>
 <div class="row" style="margin-top:8px"><button class="btn2" id="copy" data-i18n="copylink">Αντιγραφή link</button><button class="btn2" id="shareRef" data-i18n="share">Κοινοποίηση ✈️</button></div>
 </div>
 
@@ -214,7 +223,8 @@ ads:"Διαφήμιση = Ενέργεια",adswatch:"Δες βίντεο +⚡",
 conv:"🪙 Εκτίμηση: ≈ <b>{e}</b> MYTH ({p}% του pool)",conv_no:"🪙 Σκάψε τουλάχιστον 1.000 πόντους για μετατροπή.",
 earn:"Κέρδη σου",fromfriends:"από φίλους",
 earn_how:"Έτσι βγάζεις λεφτά: 1) Σκάβεις πόντους $MYTH κάθε μέρα. 2) Στο λανσάρισμα γίνονται αληθινά tokens (πάνω η εκτίμησή σου). 3) Φέρνεις φίλους = +10% από όσα σκάβουν, για πάντα. 4) Τουρνουά κάθε εβδομάδα με έπαθλα.",
-tasks:"Εβδομαδιαία Tasks",task_invite1:"Φέρε 1 φίλο",task_earn50k:"Σκάψε 50.000 συνολικά",task_rigs5:"Απόκτησε 5 ορυχεία",task_streak3:"3 μέρες σερί δώρο",task_join:"Μπες στο κανάλι μας",t_open:"Άνοιγμα",tank:"Ρεζερβουάρ ενέργειας",tank_buy:"+{x} χώρος ({c} $MYTH)",tank_max:"ΜΑΧ ρεζερβουάρ 🏆",lg0:"🥉 Χάλκινη",lg1:"🥈 Ασημένια",lg2:"🥇 Χρυσή",lg3:"💎 Διαμαντένια",lg4:"🏛️ Μυθική"},
+tasks:"Εβδομαδιαία Tasks",task_invite1:"Φέρε 1 φίλο",task_earn50k:"Σκάψε 50.000 συνολικά",task_rigs5:"Απόκτησε 5 ορυχεία",task_streak3:"3 μέρες σερί δώρο",task_join:"Μπες στο κανάλι μας",t_open:"Άνοιγμα",tank:"Ρεζερβουάρ ενέργειας",tank_buy:"+{x} χώρος ({c} $MYTH)",tank_max:"ΜΑΧ ρεζερβουάρ 🏆",lg0:"🥉 Χάλκινη",lg1:"🥈 Ασημένια",lg2:"🥇 Χρυσή",lg3:"💎 Διαμαντένια",lg4:"🏛️ Μυθική",
+combo:"Ημερήσιο Combo",combo_need:"Αγόρασε και τα 3 για το έπαθλο 👆",combo_ok:"Combo! +{x} $MYTH 🃏",combo_no:"Σου λείπουν κάρτες 🃏",combo_has:"Έχεις το",combo_miss:"Λείπει",multitap:"Δύναμη tap",tap_lv:"Επίπεδο {x} (κάθε tap δίνει +{x})",tap_max:"ΜΑΧ δύναμη 👆",reflead:"🏆 Top στρατολόγοι"},
 en: {subtitle:"Mine $MYTH • Pick your City • Solve the Oracle",connecting:"🔄 Connecting…",online:"🟢 Connected!",offline:"🔴 Can't reach server. Try again.",
 persec:"/sec",polis:"City",c_athens:"Athens",c_sparta:"Sparta",c_crete:"Crete",zeus:"ZEUS BOLT — x5 for 5s! TAP NOW!",
 tap:"MINE (+1)",zeustip:"Tip: while the bolt flashes, every tap pays x5.",shop:"Rigs (work offline 8h)",claim:"Claim offline earnings",
@@ -236,7 +246,8 @@ ads:"Ads = Energy",adswatch:"Watch video +⚡",adsinfo:"Watch a short video for 
 conv:"🪙 Estimate: ≈ <b>{e}</b> MYTH ({p}% of pool)",conv_no:"🪙 Mine at least 1,000 points to convert.",
 earn:"Your Earnings",fromfriends:"from friends",
 earn_how:"How you earn: 1) Mine $MYTH points daily. 2) At launch they become real tokens (estimate above). 3) Bring friends = +10% of all they mine, forever. 4) Weekly tournament with prizes.",
-tasks:"Weekly Tasks",task_invite1:"Invite 1 friend",task_earn50k:"Mine 50,000 total",task_rigs5:"Own 5 rigs",task_streak3:"3-day gift streak",task_join:"Join our channel",t_open:"Open",tank:"Energy tank",tank_buy:"+{x} cap ({c} $MYTH)",tank_max:"MAX tank 🏆",lg0:"🥉 Bronze",lg1:"🥈 Silver",lg2:"🥇 Gold",lg3:"💎 Diamond",lg4:"🏛️ Mythic"}
+tasks:"Weekly Tasks",task_invite1:"Invite 1 friend",task_earn50k:"Mine 50,000 total",task_rigs5:"Own 5 rigs",task_streak3:"3-day gift streak",task_join:"Join our channel",t_open:"Open",tank:"Energy tank",tank_buy:"+{x} cap ({c} $MYTH)",tank_max:"MAX tank 🏆",lg0:"🥉 Bronze",lg1:"🥈 Silver",lg2:"🥇 Gold",lg3:"💎 Diamond",lg4:"🏛️ Mythic",
+combo:"Daily Combo",combo_need:"Own all 3 for the prize 👆",combo_ok:"Combo! +{x} $MYTH 🃏",combo_no:"Missing cards 🃏",combo_has:"Owned",combo_miss:"Missing",multitap:"Tap power",tap_lv:"Level {x} (each tap +{x})",tap_max:"MAX power 👆",reflead:"🏆 Top recruiters"}
 };
 function t(k, vars){ let s = (I[LANG] && I[LANG][k]) || I.el[k] || k; if(vars) for(const k2 in vars) s = s.replace("{"+k2+"}", vars[k2]); return s; }
 function applyI18n(){
@@ -278,6 +289,10 @@ function renderState(s){
   document.getElementById("enmax").textContent = EMAX.toLocaleString();
   document.getElementById("enbar").style.width = (100*s.energy/EMAX)+"%";
   document.getElementById("league").textContent = t("lg"+(s.league ?? leagueOf(s.total_earned)));
+  const lv = s.tap_level || 1;
+  document.getElementById("tap").textContent = `${t("tap")} (+${lv})`;
+  const mb = document.getElementById("tapBtn"), mi = document.getElementById("tapInfo");
+  if (mb && mi){ if (lv >= 10){ mb.textContent = t("tap_max"); mb.disabled = true; mi.textContent = t("tap_lv",{x:lv}); } else { mb.disabled = false; const c = 500*Math.pow(2, lv-1); mb.textContent = `+1 (${c.toLocaleString()})`; mi.textContent = t("tap_lv",{x:lv}); } }
   const tb = document.getElementById("tankBtn"), ti = document.getElementById("tankInfo");
   if (tb && ti){ if (EMAX >= 5000){ tb.textContent = t("tank_max"); tb.disabled = true; ti.textContent = EMAX.toLocaleString()+" ⚡"; } else { tb.disabled = false; const c = EMAX*5; tb.textContent = t("tank_buy",{x:"+500",c:c.toLocaleString()}); ti.textContent = EMAX.toLocaleString()+" ⚡"; } }
   document.getElementById("rate").textContent = s.rate;
@@ -430,7 +445,7 @@ document.getElementById("adsBtn").onclick = async ()=>{
     }
   }catch(e){}
 };
-quests(); tasks();
+quests(); tasks(); combo(); refboard();
 document.getElementById("tonBuy").onclick = async ()=>{
   const tx = document.getElementById("tonTx").value.trim();
   if(!tx){ alert(t("ton_need_wallet")); return; }
@@ -479,6 +494,25 @@ async function tasks(){
 }
 const _tankBtn = document.getElementById("tankBtn");
 if (_tankBtn) _tankBtn.onclick = async ()=>{ const j = await post("/api/tank",{user_id:UID}); buzz(j.ok?"ok":"err"); if(!j.ok) alert(j.error==="maxed" ? t("tank_max") : (j.error||"error")); refresh(); };
+async function combo(){
+  const j = await post("/api/combo",{user_id:UID}).catch(()=>null);
+  const el = document.getElementById("comboList"), btn = document.getElementById("comboBtn"), info = document.getElementById("comboInfo");
+  if(!el || !j || !j.ok) return;
+  const cb = j.combo;
+  info.textContent = t("combo_need") + ` • +${cb.reward.toLocaleString()} $MYTH`;
+  el.innerHTML = cb.cards.map(c=>`<div class="srow"><span>🃏 ${c.name}<br><small class="muted">${c.owned>0 ? "✅ "+t("combo_has") : "❌ "+t("combo_miss")}</small></span></div>`).join("");
+  if (cb.claimed){ btn.textContent = t("qclaimed"); btn.disabled = true; }
+  else if (cb.done){ btn.disabled = false; btn.textContent = `${t("qclaim")} +${cb.reward.toLocaleString()}`; btn.onclick = async ()=>{ const r = await post("/api/combo_claim",{user_id:UID}); buzz(r.ok?"ok":"err"); alert(r.ok ? t("combo_ok",{x:r.reward}) : t("combo_no")); combo(); refresh(); }; }
+  else { btn.textContent = t("combo_no"); btn.disabled = true; }
+}
+async function refboard(){
+  const j = await get("/api/refboard").catch(()=>null);
+  const el = document.getElementById("refTop"); if(!el || !j || !j.ok || !j.top.length) return;
+  el.innerHTML = `<tr><td colspan="3"><b>${t("reflead")}</b></td></tr>` + j.top.map((r,i)=>
+    `<tr class="${String(r.user_id)===String(UID)?"me":""}"><td>${i+1}</td><td>${r.username||r.user_id}</td><td>${r.invites} 👥</td></tr>`).join("");
+}
+const _tapBtn = document.getElementById("tapBtn");
+if (_tapBtn) _tapBtn.onclick = async ()=>{ const j = await post("/api/multitap",{user_id:UID}); buzz(j.ok?"ok":"err"); if(!j.ok) alert(j.error==="maxed" ? t("tap_max") : (j.error||"error")); refresh(); };
 let _adsCtl = null;
 async function adsInit(blockId){
   if (!blockId || !window.Adsgram) return;
@@ -497,7 +531,7 @@ async function convert(){
 }
 function loop(fn, base, jit){ (function go(){ Promise.resolve(fn()).catch(()=>{}); setTimeout(go, base + Math.random()*jit); })(); }
 applyI18n(); stars(); convert(); loop(convert, 30000, 5000);
-loop(refresh, 5000, 2000); loop(board, 10000, 3000); loop(season, 15000, 4000); loop(quests, 30000, 5000); loop(tasks, 30000, 5000);
+loop(refresh, 5000, 2000); loop(board, 10000, 3000); loop(refboard, 15000, 4000); loop(season, 15000, 4000); loop(quests, 30000, 5000); loop(tasks, 30000, 5000); loop(combo, 30000, 5000);
 init();
 </script>
 </body>
