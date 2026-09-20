@@ -274,7 +274,7 @@ function floatNum(x, y, txt){
 async function init(){
   document.getElementById("net").textContent = t("connecting");
   try{
-  let polis = localStorage.getItem("polis") || "athens";
+  let polis = localStorage.getItem("polis") || ["athens","sparta","crete"][Math.floor(Math.random()*3)];
   const j = await post("/api/init", {user_id: UID, username: USERNAME, polis, referrer: REF});
   if (j.ok) renderState(j.state);
   refresh(); season(); board();

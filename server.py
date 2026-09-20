@@ -496,7 +496,16 @@ class H(BaseHTTPRequestHandler):
                         by.setdefault(pol, {"myth": 0, "players": 0})
                     week = now // (7 * 86400)
                     ends = (week + 1) * 7 * 86400 - now
-                    leader = max(config.POLIS_LIST, key=lambda k: by[k]["myth"])
+                    for pol in config.POLIS_LIST:
+                        try:
+                            ms = sorted(float(_row(r)["myth"] or 0) for r in c.execute("SELECT myth FROM users WHERE polis=?", (pol,)).fetchall())
+                        except Exception:
+                            ms = []
+                        n = len(ms)
+                        med = ms[n // 2] if n else 0
+                        by[pol]["median"] = round(med)
+                        by[pol]["score"] = med
+                    leader = max(config.POLIS_LIST, key=lambda k: by[k]["score"])
                     lastw = None
                     try:
                         paid = meta_get(c, "season_paid_week")
