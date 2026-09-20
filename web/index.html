@@ -72,7 +72,7 @@ tr.me td{color:var(--gold2);font-weight:800}
 <div class="meander"></div>
 
 <div class="card sticky">
-<div class="row" style="align-items:center"><div>💰 <span class="big-myth" id="myth">0</span> <small class="muted">$MYTH</small></div><div style="text-align:right">⚡ <b id="en">1000</b><small class="muted">/1000</small></div></div>
+<div class="row" style="align-items:center"><div>💰 <span class="big-myth" id="myth">0</span> <small class="muted">$MYTH</small></div><div style="text-align:right">⚡ <b id="en">1000</b><small class="muted">/<span id="enmax">1000</span></small></div></div>
 <div class="bar"><i id="enbar" style="width:100%"></i></div>
 <div class="muted" style="margin-top:6px">🏗️ <span id="rate">0</span><span data-i18n="persec">/sec</span> • <span class="streakfire">🔥 <span id="streak">0</span></span></div>
 </div>
@@ -80,6 +80,7 @@ tr.me td{color:var(--gold2);font-weight:800}
 <div class="card">
 <b class="ttl">💰 <span data-i18n="earn">Κέρδη σου</span></b>
 <div class="row" style="margin-top:6px"><div>📥 <b id="totEarn">0</b> <small class="muted">$MYTH</small></div><div style="text-align:right">👥 +<b id="refEarn">0</b> <small class="muted" data-i18n="fromfriends">από φίλους</small></div></div>
+<div class="muted" style="margin-top:6px">🏅 <b id="league">🥉 Bronze</b></div>
 <div class="muted" id="earnHow" style="margin-top:6px"></div>
 </div>
 
@@ -105,6 +106,7 @@ tr.me td{color:var(--gold2);font-weight:800}
 <div class="card shop">
 <b class="ttl">🏗️ <span data-i18n="shop">Ορυχεία (δουλεύουν offline 8h)</span></b>
 <div id="shop"></div>
+<div class="srow"><span>🛢️ <span data-i18n="tank">Ρεζερβουάρ ενέργειας</span><br><small class="muted" id="tankInfo"></small></span><button class="btn2" id="tankBtn">+500</button></div>
 <button class="btn2" id="claim" style="width:100%;margin-top:8px">📥 <span data-i18n="claim">Claim offline κέρδη</span></button>
 </div>
 <div class="card">
@@ -127,6 +129,11 @@ tr.me td{color:var(--gold2);font-weight:800}
 <div class="card">
 <b class="ttl">📜 <span data-i18n="quests">Αποστολές</span></b>
 <div id="questList"></div>
+</div>
+
+<div class="card">
+<b class="ttl">🎯 <span data-i18n="tasks">Εβδομαδιαία Tasks</span></b>
+<div id="taskList"></div>
 </div>
 
 <div class="card">
@@ -183,7 +190,8 @@ let UID = tg?.initDataUnsafe?.user?.id?.toString() || localStorage.getItem("uid"
 localStorage.setItem("uid", UID);
 let USERNAME = tg?.initDataUnsafe?.user?.username || ("guest"+UID.slice(-4));
 let REF = qs.get("ref") || qs.get("startattach") || "";
-let ZEUS = false, CATALOG = {}, LANG = localStorage.getItem("lang") || "el";
+let ZEUS = false, CATALOG = {}, LANG = localStorage.getItem("lang") || "el", EMAX = 1000, JOIN_URL = "";
+function leagueOf(total){ const v = Number(total)||0; if(v>=10000000) return 4; if(v>=1000000) return 3; if(v>=100000) return 2; if(v>=10000) return 1; return 0; }
 const I = {
 el: {subtitle:"Σκάψε $MYTH • Διάλεξε Πόλη • Λύσε τον Χρησμό",connecting:"🔄 Σύνδεση…",online:"🟢 Συνδέθηκες!",offline:"🔴 Δεν μπορώ να συνδεθώ. Δοκίμασε ξανά.",
 persec:"/sec",polis:"Πόλη",c_athens:"Αθήνα",c_sparta:"Σπάρτη",c_crete:"Κρήτη",zeus:"ΚΕΡΑΥΝΟΣ ΔΙΑ — x5 για 5”! ΠΑΤΑ ΤΩΡΑ!",
@@ -205,7 +213,8 @@ tourn:"Τουρνουά Πόλεων",tinfo:"Εβδομάδα {w} • Νικήτ
 ads:"Διαφήμιση = Ενέργεια",adswatch:"Δες βίντεο +⚡",adsinfo:"Δες ένα σύντομο βίντεο και γέμισε +{x} ενέργεια. ({n} απομένουν σήμερα)",ads_ok:"+{x} ενέργεια! ⚡",ads_cool:"Περίμενε λίγο ⏳",ads_limit:"Έφτασες το ημερήσιο όριο 🙂",r5:"• Καθημερινό δώρο, αποστολές και τουρνουά με έπαθλα <b>$MYTH</b>.",
 conv:"🪙 Εκτίμηση: ≈ <b>{e}</b> MYTH ({p}% του pool)",conv_no:"🪙 Σκάψε τουλάχιστον 1.000 πόντους για μετατροπή.",
 earn:"Κέρδη σου",fromfriends:"από φίλους",
-earn_how:"Έτσι βγάζεις λεφτά: 1) Σκάβεις πόντους $MYTH κάθε μέρα. 2) Στο λανσάρισμα γίνονται αληθινά tokens (πάνω η εκτίμησή σου). 3) Φέρνεις φίλους = +10% από όσα σκάβουν, για πάντα. 4) Τουρνουά κάθε εβδομάδα με έπαθλα."},
+earn_how:"Έτσι βγάζεις λεφτά: 1) Σκάβεις πόντους $MYTH κάθε μέρα. 2) Στο λανσάρισμα γίνονται αληθινά tokens (πάνω η εκτίμησή σου). 3) Φέρνεις φίλους = +10% από όσα σκάβουν, για πάντα. 4) Τουρνουά κάθε εβδομάδα με έπαθλα.",
+tasks:"Εβδομαδιαία Tasks",task_invite1:"Φέρε 1 φίλο",task_earn50k:"Σκάψε 50.000 συνολικά",task_rigs5:"Απόκτησε 5 ορυχεία",task_streak3:"3 μέρες σερί δώρο",task_join:"Μπες στο κανάλι μας",t_open:"Άνοιγμα",tank:"Ρεζερβουάρ ενέργειας",tank_buy:"+{x} χώρος ({c} $MYTH)",tank_max:"ΜΑΧ ρεζερβουάρ 🏆",lg0:"🥉 Χάλκινη",lg1:"🥈 Ασημένια",lg2:"🥇 Χρυσή",lg3:"💎 Διαμαντένια",lg4:"🏛️ Μυθική"},
 en: {subtitle:"Mine $MYTH • Pick your City • Solve the Oracle",connecting:"🔄 Connecting…",online:"🟢 Connected!",offline:"🔴 Can't reach server. Try again.",
 persec:"/sec",polis:"City",c_athens:"Athens",c_sparta:"Sparta",c_crete:"Crete",zeus:"ZEUS BOLT — x5 for 5s! TAP NOW!",
 tap:"MINE (+1)",zeustip:"Tip: while the bolt flashes, every tap pays x5.",shop:"Rigs (work offline 8h)",claim:"Claim offline earnings",
@@ -226,7 +235,8 @@ tourn:"City Tournament",tinfo:"Week {w} • Leading city: {c} • Top3 prizes: {
 ads:"Ads = Energy",adswatch:"Watch video +⚡",adsinfo:"Watch a short video for +{x} energy. ({n} left today)",ads_ok:"+{x} energy! ⚡",ads_cool:"Wait a bit ⏳",ads_limit:"Daily limit reached 🙂",r5:"• Daily gift, quests and tournaments with <b>$MYTH</b> prizes.",
 conv:"🪙 Estimate: ≈ <b>{e}</b> MYTH ({p}% of pool)",conv_no:"🪙 Mine at least 1,000 points to convert.",
 earn:"Your Earnings",fromfriends:"from friends",
-earn_how:"How you earn: 1) Mine $MYTH points daily. 2) At launch they become real tokens (estimate above). 3) Bring friends = +10% of all they mine, forever. 4) Weekly tournament with prizes."}
+earn_how:"How you earn: 1) Mine $MYTH points daily. 2) At launch they become real tokens (estimate above). 3) Bring friends = +10% of all they mine, forever. 4) Weekly tournament with prizes.",
+tasks:"Weekly Tasks",task_invite1:"Invite 1 friend",task_earn50k:"Mine 50,000 total",task_rigs5:"Own 5 rigs",task_streak3:"3-day gift streak",task_join:"Join our channel",t_open:"Open",tank:"Energy tank",tank_buy:"+{x} cap ({c} $MYTH)",tank_max:"MAX tank 🏆",lg0:"🥉 Bronze",lg1:"🥈 Silver",lg2:"🥇 Gold",lg3:"💎 Diamond",lg4:"🏛️ Mythic"}
 };
 function t(k, vars){ let s = (I[LANG] && I[LANG][k]) || I.el[k] || k; if(vars) for(const k2 in vars) s = s.replace("{"+k2+"}", vars[k2]); return s; }
 function applyI18n(){
@@ -263,8 +273,13 @@ async function init(){
 }
 function renderState(s){
   document.getElementById("myth").textContent = Math.floor(s.myth).toLocaleString();
+  EMAX = s.energy_max || 1000;
   document.getElementById("en").textContent = Math.floor(s.energy);
-  document.getElementById("enbar").style.width = (100*s.energy/s.energy_max)+"%";
+  document.getElementById("enmax").textContent = EMAX.toLocaleString();
+  document.getElementById("enbar").style.width = (100*s.energy/EMAX)+"%";
+  document.getElementById("league").textContent = t("lg"+(s.league ?? leagueOf(s.total_earned)));
+  const tb = document.getElementById("tankBtn"), ti = document.getElementById("tankInfo");
+  if (tb && ti){ if (EMAX >= 5000){ tb.textContent = t("tank_max"); tb.disabled = true; ti.textContent = EMAX.toLocaleString()+" ⚡"; } else { tb.disabled = false; const c = EMAX*5; tb.textContent = t("tank_buy",{x:"+500",c:c.toLocaleString()}); ti.textContent = EMAX.toLocaleString()+" ⚡"; } }
   document.getElementById("rate").textContent = s.rate;
   document.getElementById("streak").textContent = s.streak;
   document.getElementById("totEarn").textContent = Math.floor(s.total_earned||0).toLocaleString();
@@ -323,7 +338,7 @@ async function doTap(e){
   if (e && e.clientX){ floatNum(e.clientX, e.clientY, ZEUS ? "+5 ⚡" : "+1"); }
   const j = await post("/api/tap", {user_id: UID, taps: 1, zeus: ZEUS});
   if (j.ok){ document.getElementById("myth").textContent = Math.floor(j.myth).toLocaleString(); document.getElementById("en").textContent = Math.floor(j.energy);
-    document.getElementById("enbar").style.width = (100*j.energy/1000)+"%"; }
+    document.getElementById("enbar").style.width = (100*j.energy/EMAX)+"%"; }
   else if (j.error === "no energy"){ buzz("err"); alert(t("noenergy")); }
 }
 document.getElementById("tap").onclick = (e)=>doTap(e);
@@ -415,7 +430,7 @@ document.getElementById("adsBtn").onclick = async ()=>{
     }
   }catch(e){}
 };
-quests();
+quests(); tasks();
 document.getElementById("tonBuy").onclick = async ()=>{
   const tx = document.getElementById("tonTx").value.trim();
   if(!tx){ alert(t("ton_need_wallet")); return; }
@@ -443,6 +458,27 @@ async function quests(){
     d.appendChild(b); el.appendChild(d);
   });
 }
+async function tasks(){
+  const j = await post("/api/tasks",{user_id:UID}).catch(()=>null);
+  const el = document.getElementById("taskList"); if(!el || !j || !j.ok) return;
+  JOIN_URL = j.join_url || "";
+  el.innerHTML = "";
+  j.tasks.forEach(q=>{
+    const d = document.createElement("div"); d.className = "srow";
+    d.innerHTML = `<span>${t(q.code)}<br><small class="muted">${Math.min(q.have,q.need).toLocaleString()}/${q.need.toLocaleString()} • +${q.reward} $MYTH</small></span>`;
+    const b = document.createElement("button"); b.className = "btn2";
+    if (q.claimed){ b.textContent = t("qclaimed"); b.disabled = true; }
+    else if (q.code === "task_join" && !q.done){
+      b.textContent = t("t_open");
+      b.onclick = ()=>{ if (JOIN_URL){ if (tg?.openTelegramLink) tg.openTelegramLink(JOIN_URL); else window.open(JOIN_URL, "_blank"); } setTimeout(tasks, 3000); };
+    }
+    else if (q.done){ b.textContent = `${t("qclaim")} +${q.reward}`; b.onclick = async ()=>{ const r = await post("/api/task_claim",{user_id:UID,code:q.code}); buzz(r.ok?"ok":"err"); alert(r.ok ? ("+"+r.reward+" $MYTH 🎉") : r.error); tasks(); refresh(); }; }
+    else { b.textContent = t("qdone").replace(" ✅"," ⏳"); b.disabled = true; }
+    d.appendChild(b); el.appendChild(d);
+  });
+}
+const _tankBtn = document.getElementById("tankBtn");
+if (_tankBtn) _tankBtn.onclick = async ()=>{ const j = await post("/api/tank",{user_id:UID}); buzz(j.ok?"ok":"err"); if(!j.ok) alert(j.error==="maxed" ? t("tank_max") : (j.error||"error")); refresh(); };
 let _adsCtl = null;
 async function adsInit(blockId){
   if (!blockId || !window.Adsgram) return;
@@ -461,7 +497,7 @@ async function convert(){
 }
 function loop(fn, base, jit){ (function go(){ Promise.resolve(fn()).catch(()=>{}); setTimeout(go, base + Math.random()*jit); })(); }
 applyI18n(); stars(); convert(); loop(convert, 30000, 5000);
-loop(refresh, 5000, 2000); loop(board, 10000, 3000); loop(season, 15000, 4000); loop(quests, 30000, 5000);
+loop(refresh, 5000, 2000); loop(board, 10000, 3000); loop(season, 15000, 4000); loop(quests, 30000, 5000); loop(tasks, 30000, 5000);
 init();
 </script>
 </body>

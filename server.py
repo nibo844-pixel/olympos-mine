@@ -103,7 +103,8 @@ def _init(c):
                      ("taps_total","INTEGER DEFAULT 0"),("last_daily","INTEGER DEFAULT 0"),
                      ("daily_streak","INTEGER DEFAULT 0"),("last_ad","INTEGER DEFAULT 0"),
                      ("ads_day","TEXT DEFAULT ''"),("ads_n","INTEGER DEFAULT 0"),
-                     ("total_earned","REAL DEFAULT 0"),("ref_earned","REAL DEFAULT 0")]:
+                     ("total_earned","REAL DEFAULT 0"),("ref_earned","REAL DEFAULT 0"),
+                     ("energy_max","INTEGER DEFAULT 1000")]:
         try:
             c.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
             c.commit()
@@ -195,7 +196,7 @@ def grant_product(c, uid, product, source="mock", tx=""):
     if not u:
         return False
     if product == "energy_full":
-        c.execute("UPDATE users SET energy=? WHERE user_id=?", (config.ENERGY_MAX, uid))
+        c.execute("UPDATE users SET energy=? WHERE user_id=?", (emax_of(u), uid))
     elif product == "shield_7d":
         until = max(now, u["shield_until"] or 0) + 7*86400
         c.execute("UPDATE users SET shield_until=? WHERE user_id=?", (until, uid))
@@ -210,13 +211,33 @@ def grant_product(c, uid, product, source="mock", tx=""):
     c.commit()
     return True
 
+LEAGUE_STEPS = [(10000000, 4), (1000000, 3), (100000, 2), (10000, 1)]
+
+def league_of(total):
+    try:
+        t = float(total or 0)
+    except Exception:
+        t = 0
+    for need, lg in LEAGUE_STEPS:
+        if t >= need:
+            return lg
+    return 0
+
+def emax_of(row):
+    try:
+        if "energy_max" in row.keys() and row["energy_max"]:
+            return max(config.ENERGY_MAX, min(config.TANK_MAX, int(row["energy_max"])))
+    except Exception:
+        pass
+    return config.ENERGY_MAX
+
 def touch(row, c, now):
     rigs = rigs_dict(row)
     rate = per_sec(rigs, row["turbo"] if "turbo" in row.keys() else 0, row["premium"] if "premium" in row.keys() else 0)
     last_claim = row["last_claim"] or now
     dt = max(0, min(now - last_claim, config.OFFLINE_CAP_SEC))
     earn = rate * dt
-    energy = min(config.ENERGY_MAX, (row["energy"] or 0) + max(0, now - (row["last_seen"] or now)) * config.ENERGY_REGEN_PER_SEC)
+    energy = min(emax_of(row), (row["energy"] or 0) + max(0, now - (row["last_seen"] or now)) * config.ENERGY_REGEN_PER_SEC)
     myth = (row["myth"] or 0) + earn
     c.execute("UPDATE users SET myth=?, energy=?, last_seen=?, last_claim=?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?",
               (myth, energy, now, now, earn, row["user_id"]))
@@ -230,7 +251,8 @@ def get_user(c, uid):
 def payload(u, rigs, rate):
     k = u.keys()
     return {"user_id": u["user_id"], "username": u["username"], "myth": round(u["myth"], 1),
-            "energy": int(u["energy"]), "energy_max": config.ENERGY_MAX,
+            "energy": int(u["energy"]), "energy_max": emax_of(u),
+            "league": league_of(u["total_earned"] if "total_earned" in k else 0),
             "polis": u["polis"], "rigs": rigs, "rate": rate, "streak": u["streak"],
             "turbo": u["turbo"] if "turbo" in k else 0,
             "premium": u["premium"] if "premium" in k else 0,
@@ -284,6 +306,52 @@ def quest_claimed(c, uid):
     ensure_extra(c)
     rows = c.execute("SELECT code FROM quests WHERE user_id=? AND claimed=1", (uid,)).fetchall()
     return set(_row(r)["code"] for r in rows)
+
+TASKS = [
+    {"code": "task_invite1", "need": 1, "reward": 500},
+    {"code": "task_earn50k", "need": 50000, "reward": 1000},
+    {"code": "task_rigs5", "need": 5, "reward": 800},
+    {"code": "task_streak3", "need": 3, "reward": 600},
+    {"code": "task_join", "need": 1, "reward": 400},
+]
+
+def task_member_ok(uid):
+    chat = (config.JOIN_CHAT or "").strip().lstrip("@")
+    if not chat:
+        return False
+    try:
+        int(uid)
+    except Exception:
+        return False
+    try:
+        r = tg_bot_call("getChatMember", {"chat_id": "@" + chat, "user_id": int(uid)})
+        st = ((r.get("result") or {}).get("status") or "")
+        return st in ("creator", "administrator", "member", "restricted")
+    except Exception:
+        return False
+
+def task_progress(c, u, rigs):
+    out = []
+    for q in TASKS:
+        code = q["code"]
+        if code == "task_invite1":
+            try:
+                n = _row(c.execute("SELECT COUNT(*) n FROM users WHERE referrer=?", (u["user_id"],)).fetchone())["n"] or 0
+            except Exception:
+                n = 0
+            have = int(n)
+        elif code == "task_earn50k":
+            have = int(float(u.get("total_earned", 0) or 0))
+        elif code == "task_rigs5":
+            have = sum(int(v) for v in (rigs or {}).values())
+        elif code == "task_streak3":
+            have = int(u.get("daily_streak", 0) or 0)
+        elif code == "task_join":
+            have = 1 if task_member_ok(u["user_id"]) else 0
+        else:
+            have = 0
+        out.append({"code": code, "need": q["need"], "have": have, "reward": q["reward"]})
+    return out
 
 def check_rate(uid, min_interval=0.4):
     now = time.time()
@@ -602,6 +670,50 @@ class H(BaseHTTPRequestHandler):
                 c.commit()
                 u = get_user(c, uid)
                 return self.send_json({"ok": True, "reward": prog[code]["reward"], "myth": round(u["myth"], 1)})
+            if p == "/api/tasks":
+                try:
+                    prog = task_progress(c, u, rigs)
+                    claimed = quest_claimed(c, uid)
+                except Exception as e:
+                    return self.send_json({"ok": False, "error": "dbg:" + repr(e)}, 500)
+                if not (config.JOIN_CHAT or "").strip():
+                    prog = [q for q in prog if q["code"] != "task_join"]
+                for q in prog:
+                    q["claimed"] = q["code"] in claimed
+                    q["done"] = q["have"] >= q["need"]
+                join_url = ("https://t.me/" + config.JOIN_CHAT.strip().lstrip("@")) if (config.JOIN_CHAT or "").strip() else ""
+                return self.send_json({"ok": True, "tasks": prog, "join_url": join_url})
+            if p == "/api/task_claim":
+                code = str(data.get("code", ""))
+                prog = {q["code"]: q for q in task_progress(c, u, rigs)}
+                if code not in prog:
+                    return self.send_json({"ok": False, "error": "bad task"}, 400)
+                if code in quest_claimed(c, uid):
+                    return self.send_json({"ok": False, "error": "claimed"}, 400)
+                if code == "task_join" and not task_member_ok(uid):
+                    return self.send_json({"ok": False, "error": "join first"}, 400)
+                if prog[code]["have"] < prog[code]["need"]:
+                    return self.send_json({"ok": False, "error": "not done"}, 400)
+                c.execute("UPDATE users SET myth=myth+?, total_earned=COALESCE(total_earned,0)+? WHERE user_id=?", (prog[code]["reward"], prog[code]["reward"], uid))
+                if c.pg:
+                    c.execute("INSERT INTO quests(user_id,code,claimed) VALUES(?,?,1) ON CONFLICT(user_id,code) DO UPDATE SET claimed=1", (uid, code))
+                else:
+                    c.execute("INSERT OR REPLACE INTO quests(user_id,code,claimed) VALUES(?,?,1)", (uid, code))
+                c.commit()
+                u = get_user(c, uid)
+                return self.send_json({"ok": True, "reward": prog[code]["reward"], "myth": round(u["myth"], 1)})
+            if p == "/api/tank":
+                emax = emax_of(u)
+                if emax >= config.TANK_MAX:
+                    return self.send_json({"ok": False, "error": "maxed"}, 400)
+                cost = emax * 5
+                if (u["myth"] or 0) < cost:
+                    return self.send_json({"ok": False, "error": "need more MYTH", "cost": cost}, 400)
+                emax = min(config.TANK_MAX, emax + config.TANK_STEP)
+                c.execute("UPDATE users SET myth=myth-?, energy_max=? WHERE user_id=?", (cost, emax, uid))
+                c.commit()
+                u = get_user(c, uid)
+                return self.send_json({"ok": True, "energy_max": emax, "cost": cost, "myth": round(u["myth"], 1)})
             if p == "/api/ads/reward":
                 day = time.strftime("%Y-%m-%d")
                 n = int(u.get("ads_n", 0) or 0) if u.get("ads_day") == day else 0
@@ -609,7 +721,7 @@ class H(BaseHTTPRequestHandler):
                     return self.send_json({"ok": False, "error": "cooldown"}, 400)
                 if n >= config.ADS_MAX_PER_DAY:
                     return self.send_json({"ok": False, "error": "limit"}, 400)
-                energy = min(config.ENERGY_MAX, int(u["energy"] or 0) + config.ADS_REWARD_ENERGY)
+                energy = min(emax_of(u), int(u["energy"] or 0) + config.ADS_REWARD_ENERGY)
                 c.execute("UPDATE users SET energy=?, last_ad=?, ads_day=?, ads_n=? WHERE user_id=?",
                           (energy, now, day, n + 1, uid))
                 c.commit()

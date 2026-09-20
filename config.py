@@ -73,3 +73,7 @@ TOKEN_SUPPLY = 100_000_000
 P2E_POOL = 40_000_000
 MAX_SHARE_PCT = 2.0
 MIN_POINTS = 1000
+
+JOIN_CHAT = os.environ.get("JOIN_CHAT", "")
+TANK_STEP = int(os.environ.get("TANK_STEP", "500"))
+TANK_MAX = int(os.environ.get("TANK_MAX", "5000"))
